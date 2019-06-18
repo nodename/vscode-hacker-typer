@@ -102,8 +102,8 @@ export default class Recorder {
       stop: {
         name: name || null
       },
-      changes: null,
-      selections: null,
+      changes: undefined,
+      selections: undefined,
       position: this._buffers++
     });
   }

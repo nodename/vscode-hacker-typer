@@ -26,7 +26,9 @@
   "activationEvents": [
     "onCommand:jevakallio.vscode-hacker-typer.recordMacro",
     "onCommand:jevakallio.vscode-hacker-typer.playMacro",
-    "onCommand:jevakallio.vscode-hacker-typer.deleteMacro"
+    "onCommand:jevakallio.vscode-hacker-typer.removeMacro",
+    "onCommand:jevakallio.vscode-hacker-typer.exportMacro",
+    "onCommand:jevakallio.vscode-hacker-typer.importMacro"
   ],
   "main": "./out/extension",
   "contributes": {
@@ -40,6 +42,18 @@
         "command": "jevakallio.vscode-hacker-typer.recordMacro",
         "when": "editorTextFocus",
         "key": "cmd+shift+t r"
+      },
+      {
+        "command": "jevakallio.vscode-hacker-typer.removeMacro",
+        "key": "cmd+shift+t d"
+      },
+      {
+        "command": "jevakallio.vscode-hacker-typer.exportMacro",
+        "key": "cmd+shift+t e"
+      },
+      {
+        "command": "jevakallio.vscode-hacker-typer.importMacro",
+        "key": "cmd+shift+t m"
       },
       {
         "command": "jevakallio.vscode-hacker-typer.playMacro",
@@ -72,6 +86,16 @@
       {
         "command": "jevakallio.vscode-hacker-typer.saveMacro",
         "title": "Save Macro",
+        "category": "HackerTyper"
+      },
+      {
+        "command": "jevakallio.vscode-hacker-typer.exportMacro",
+        "title": "Export Macro",
+        "category": "HackerTyper"
+      },
+      {
+        "command": "jevakallio.vscode-hacker-typer.importMacro",
+        "title": "Import Macro",
         "category": "HackerTyper"
       },
       {
