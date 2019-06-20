@@ -20,7 +20,7 @@ type Macro = Metadata & {
 /*
   Stores macros in a persistent caches, where
   - Metadata is stored in a storage namespace ${LISTINGS}
-  - Individual buffers are stored in in namespace ${MACROS}
+  - Individual buffers are stored in namespace ${MACROS}
 */
 export default class Storage {
   // Singleton because we need ExtensionContext to initialize
@@ -87,7 +87,8 @@ export default class Storage {
     this._macros.forget(name);
   }
 
-  public exprt(name: string, path: vscode.Uri, callback: (err: NodeJS.ErrnoException | null) => void): void {
+  public exprt(name: string, path: vscode.Uri, 
+    callback: (err: NodeJS.ErrnoException | null) => void): void {
     const content = JSON.stringify(this._macros.get(name));
 
     return fs.writeFile(path.fsPath, content, callback);
@@ -112,6 +113,17 @@ export default class Storage {
       Promise.all(operations)
         .then(() => callback(undefined))
         .catch(callback);
+    });
+  }
+
+  public userChooseMacro(callback: (macro: Macro) => void) {
+    const items = this.list();
+    vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
+      if (!picked) {
+        return;
+      }
+      const macro = this.getByName(picked);
+      callback(macro);
     });
   }
 }
