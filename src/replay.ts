@@ -8,21 +8,16 @@ const replayConcurrency = 1;
 const replayQueueMaxSize = Number.MAX_SAFE_INTEGER;
 const replayQueue = new Queue(replayConcurrency, replayQueueMaxSize);
 
-let isEnabled = false;
+let replayEnabled = false;
 let currentBuffer: buffers.Buffer | undefined;
+let currentBufferList: buffers.Buffer[] = [];
 
 export function start(context: vscode.ExtensionContext) {
   const storage = Storage.getInstance(context);
-  const items = storage.list();
-  vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
-    if (!picked) {
-      return;
-    }
+  storage.userChooseMacro((macro) => {
+    currentBufferList = macro.buffers;
 
-    const macro = storage.getByName(picked);
-    buffers.inject(macro.buffers);
-
-    currentBuffer = buffers.get(0);
+    currentBuffer = currentBufferList[0];
     if (!currentBuffer) {
       vscode.window.showErrorMessage("No active recording");
       return;
@@ -33,9 +28,9 @@ export function start(context: vscode.ExtensionContext) {
       setStartingPoint(currentBuffer, textEditor);
     }
 
-    isEnabled = true;
+    replayEnabled = true;
     vscode.window.showInformationMessage(
-      `Now playing ${buffers.count()} buffers from ${macro.name}!`
+      `Now playing ${currentBufferList.length} buffers from ${macro.name}!`
     );
   });
 }
@@ -87,16 +82,20 @@ async function setStartingPoint(
   }
 
   // move to next frame
-  currentBuffer = buffers.get(startingPoint.position + 1);
+  currentBuffer = currentBufferList[startingPoint.position + 1];
+}
+
+export function currentlyReplaying() {
+  return replayEnabled;
 }
 
 export function disable() {
-  isEnabled = false;
+  replayEnabled = false;
   currentBuffer = undefined;
 }
 
 export function onType({ text }: { text: string }) {
-  if (isEnabled) {
+  if (replayEnabled) {
     replayQueue.add(
       () =>
         new Promise((resolve, reject) => {
@@ -115,8 +114,8 @@ export function onType({ text }: { text: string }) {
 
 export function onBackspace() {
   // move buffer one step backwards
-  if (isEnabled && currentBuffer && currentBuffer.position > 0) {
-    currentBuffer = buffers.get(currentBuffer.position - 1);
+  if (replayEnabled && currentBuffer && currentBuffer.position > 0) {
+    currentBuffer = currentBufferList[currentBuffer.position - 1];
   }
 
   // actually execute backspace action
@@ -153,7 +152,7 @@ function advanceBuffer(done: () => void, userInput: string) {
 
   if (buffers.isStopPoint(buffer)) {
     if (userInput === stopPointBreakChar) {
-      currentBuffer = buffers.get(buffer.position + 1);
+      currentBuffer = currentBufferList[buffer.position + 1];
     }
 
     return done();
@@ -166,11 +165,12 @@ function advanceBuffer(done: () => void, userInput: string) {
       updateSelections(selections, editor);
     }
 
-    currentBuffer = buffers.get(buffer.position + 1);
+    currentBuffer = currentBufferList[buffer.position + 1];
 
     // Ran out of buffers? Disable type capture.
     if (!currentBuffer) {
       disable();
+      vscode.window.showInformationMessage("Done!");
     }
 
     done();
