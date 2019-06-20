@@ -16,7 +16,6 @@ export function start(context: vscode.ExtensionContext) {
   const storage = Storage.getInstance(context);
   storage.userChooseMacro((macro) => {
     currentBufferList = macro.buffers;
-
     currentBuffer = currentBufferList[0];
     if (!currentBuffer) {
       vscode.window.showErrorMessage("No active recording");
@@ -89,10 +88,12 @@ export function currentlyReplaying() {
   return replayEnabled;
 }
 
-export function disable() {
+function disable() {
   replayEnabled = false;
   currentBuffer = undefined;
 }
+
+let reachedEndOfBuffers = false;
 
 export function onType({ text }: { text: string }) {
   if (replayEnabled) {
@@ -107,6 +108,10 @@ export function onType({ text }: { text: string }) {
           }
         })
     );
+  } else if (reachedEndOfBuffers) {
+    if (text === stopPointBreakChar) {
+      reachedEndOfBuffers = false;
+    }
   } else {
     vscode.commands.executeCommand("default:type", { text });
   }
@@ -169,8 +174,9 @@ function advanceBuffer(done: () => void, userInput: string) {
 
     // Ran out of buffers? Disable type capture.
     if (!currentBuffer) {
-      disable();
       vscode.window.showInformationMessage("Done!");
+      reachedEndOfBuffers = true;
+      disable();
     }
 
     done();
