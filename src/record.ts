@@ -63,17 +63,6 @@ function disposeRecordingHooks() {
   }
 }
 
-/*
-export function stopRecordingMacro() {
-  if (currentlyRecording()) {
-    // TODO ask if user wants to save current recording
-    disposeRecordingHooks();
-  } else {
-    vscode.window.showInformationMessage("Not currently recording");
-  }
-}
-*/
-
 function registerCommands() {
   const insertStopCommand = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.insertStop",
