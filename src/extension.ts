@@ -2,7 +2,7 @@
 
 import * as vscode from "vscode";
 import Storage from "./storage";
-import Recorder from "./Recorder";
+import { recordMacro } from "./record";
 import * as replay from "./replay";
 
 // this method is called when your extension is activated
@@ -14,12 +14,15 @@ export function activate(context: vscode.ExtensionContext) {
     'Congratulations, your extension "vscode-hacker-typer" is now active!'
   );
 
+
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with  registerCommand
   // The commandId parameter must match the command field in package.json
   let record = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.recordMacro",
-    Recorder.register(context)
+    () => {
+      recordMacro(context);
+    }
   );
 
   let play = vscode.commands.registerCommand(
@@ -71,7 +74,6 @@ export function activate(context: vscode.ExtensionContext) {
               console.log(err);
               return;
             }
-
             vscode.window.showInformationMessage(`Exported "${picked}"`);
           });
         });
