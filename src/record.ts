@@ -63,7 +63,7 @@ function disposeRecordingHooks() {
   }
 }
 
-function registerCommands() {
+function registerRecordingCommands() {
   const insertStopCommand = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.insertStop",
     () => {
@@ -217,7 +217,7 @@ function startRecording(isNewRecording: boolean) {
     }
 
     if (currentlyRecording() === false) {
-      const commands: vscode.Disposable[] = registerCommands();
+      const commands: vscode.Disposable[] = registerRecordingCommands();
       const eventHandlers: vscode.Disposable[] = registerEventHandlers();
 
       disposeRecordingHooks();
