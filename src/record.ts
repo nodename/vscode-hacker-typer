@@ -1,30 +1,44 @@
 import * as vscode from "vscode";
+import * as Diff from "diff";
 import * as buffers from "./buffers";
 import Storage from "./storage";
 import { currentlyReplaying } from "./replay";
+import { replaceAllContent } from "./edit";
 
-function insertStartingPoint(buffers: buffers.Buffer[], bufferPosition: number, textEditor: vscode.TextEditor) {
-  const content = textEditor.document.getText();
-  const selections = textEditor.selections;
+let documentContent = "";
+
+function insertStartingPoint(buffers: buffers.Buffer[], textEditor: vscode.TextEditor) {
+  documentContent = textEditor.document.getText();
   const language = textEditor.document.languageId;
+  const selections = textEditor.selections;
 
-  buffers.push({
-    position: bufferPosition,
-    content,
-    language,
-    selections
-  });
+  console.log(`initial content: "${documentContent}"`);
+
+  buffers.push({ content: documentContent, language, selections });
 }
 
-function insertStop(buffers: buffers.Buffer[], bufferPosition: number, name: string | null) {
+function insertStop(buffers: buffers.Buffer[], name: string | null) {
   buffers.push({
     stop: {
       name: name || null
     },
-    changes: undefined,
-    selections: undefined,
-    position: bufferPosition
+    selections: undefined
   });
+}
+
+function undoLast(buffers: buffers.Buffer[]) {
+  const lastBuffer = <buffers.Frame>(buffers[buffers.length - 1]);
+  const undo = lastBuffer.changeInfo.undo;
+
+  if (undo) {
+    documentContent = Diff.applyPatch(documentContent, undo);
+
+    const textEditor = vscode.window.activeTextEditor;
+    if (textEditor) {
+      replaceAllContent(textEditor, documentContent);
+    }
+    buffers.pop();
+  }
 }
 
 function saveRecording(bufferList: buffers.Buffer[], storage: Storage | null) {
@@ -67,8 +81,9 @@ function registerRecordingCommands() {
   const insertStopCommand = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.insertStop",
     () => {
-      insertStop(bufferList, bufferPosition++, null);
-    });
+      insertStop(bufferList, null);
+    }
+  );
 
   const insertNamedStopCommand = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.insertNamedStop",
@@ -78,30 +93,38 @@ function registerRecordingCommands() {
         placeHolder: "Type a name or ENTER for unnamed stop point"
       })
         .then(name => {
-          insertStop(bufferList, bufferPosition++, name || null);
+          insertStop(bufferList, null);
         });
-    });
+    }
+  );
+
+  const undoCommand = vscode.commands.registerCommand(
+    "jevakallio.vscode-hacker-typer.undo",
+    () => {
+      undoLast(bufferList);
+    }
+  );
 
   const saveMacroCommand = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.saveMacro",
     () => {
       saveRecording(bufferList, storage);
-    });
+    }
+  );
 
-  return [insertStopCommand, insertNamedStopCommand, saveMacroCommand];
+  return [insertStopCommand, insertNamedStopCommand, undoCommand, saveMacroCommand];
 }
 
 let storage: Storage | null = null;
 let bufferList: buffers.Buffer[] = [];
-let bufferPosition = 0;
 
-export function recordMacro(context: vscode.ExtensionContext) {
+export function start(context: vscode.ExtensionContext) {
   storage = Storage.getInstance(context);
   if (currentlyRecording()) {
     const CONTINUE = "Continue current recording";
     const NEW = "New recording from active editor";
     vscode.window.showQuickPick([CONTINUE, NEW], { canPickMany: false })
-    .then(
+      .then(
         selection => {
           if (!selection) {
             return;
@@ -111,7 +134,7 @@ export function recordMacro(context: vscode.ExtensionContext) {
               const SAVE = "Save current recording";
               const DISCARD = "Discard current recording";
               vscode.window.showQuickPick([SAVE, DISCARD], { canPickMany: false })
-              .then(
+                .then(
                   selection => {
                     if (!selection) {
                       return;
@@ -144,7 +167,6 @@ export function recordMacro(context: vscode.ExtensionContext) {
 function startRecording(isNewRecording: boolean) {
   if (isNewRecording) {
     bufferList = [];
-    bufferPosition = 0;
   }
 
   let currentOpenEditor = vscode.window.activeTextEditor;
@@ -152,20 +174,28 @@ function startRecording(isNewRecording: boolean) {
     // start watching the currently open doc
     // TODO if not new recording, check if doc has changed
     let currentActiveDoc = currentOpenEditor.document;
-    let currentChanges: vscode.TextDocumentContentChangeEvent[] = [];
+    let currentChangeInfo: buffers.ChangeInfo;
 
     function registerEventHandlers() {
       const onDidChangeTextDocumentHandler = vscode.workspace.onDidChangeTextDocument(
         (event: vscode.TextDocumentChangeEvent) => {
           if (event.document === currentActiveDoc) {
-            // @TODO: Gets called while playing -- need to stop recording once over
             if (currentlyReplaying()) {
               return;
             }
 
+            const newContent = currentActiveDoc.getText();
+            const diff = Diff.createPatch("", documentContent, newContent);
+            const undo = Diff.createPatch("", newContent, documentContent);
+
+            documentContent = newContent;
+
             // store changes, selection change will commit
-            currentChanges = event.contentChanges;
-            console.log('Watched doc changed');
+            currentChangeInfo = {
+              changes: event.contentChanges,
+              diff: diff,
+              undo: undo
+            };
           } else {
             console.log('Non-watched doc changed');
           }
@@ -173,7 +203,6 @@ function startRecording(isNewRecording: boolean) {
 
       const onDidChangeTextEditorSelectionHandler = vscode.window.onDidChangeTextEditorSelection(
         (event: vscode.TextEditorSelectionChangeEvent) => {
-          // @TODO: Gets called while playing -- need to stop recording once over
           if (currentlyReplaying()) {
             return;
           }
@@ -185,15 +214,19 @@ function startRecording(isNewRecording: boolean) {
             return;
           }
 
-          const changes = currentChanges;
-          const selections = event.selections || [];
-          currentChanges = [];
+          const changeInfo = currentChangeInfo;
+          currentChangeInfo = { changes: [], diff: "", undo: "" };
 
-          bufferList.push({
-            changes,
-            selections,
-            position: bufferPosition++
-          });
+          const selections = event.selections || [];
+
+          const selection = selections[0];
+          const selectedText = currentActiveDoc.getText(selection);
+
+          console.log("");
+          console.log(buffers.describeChange(changeInfo));
+          console.log(buffers.describeSelection(selection, selectedText));
+
+          bufferList.push({ changeInfo: changeInfo, selections: selections });
         });
 
       const onDidCloseTextDocumentHandler = vscode.workspace.onDidCloseTextDocument(
@@ -217,17 +250,18 @@ function startRecording(isNewRecording: boolean) {
     }
 
     if (currentlyRecording() === false) {
+      disposeRecordingHooks();
+
       const commands: vscode.Disposable[] = registerRecordingCommands();
       const eventHandlers: vscode.Disposable[] = registerEventHandlers();
 
-      disposeRecordingHooks();
       recordingHooks = vscode.Disposable.from(
         ...commands, ...eventHandlers
       );
     }
 
     if (isNewRecording) {
-      insertStartingPoint(bufferList, bufferPosition++, currentOpenEditor);
+      insertStartingPoint(bufferList, currentOpenEditor);
     }
 
     vscode.window.showInformationMessage("Hacker Typer is now recording!");

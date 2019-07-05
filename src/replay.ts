@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import * as buffers from "./buffers";
+import * as sound from "./sound";
 import Storage from "./storage";
 import * as Queue from "promise-queue";
+import { applyContentChanges, replaceAllContent } from "./edit";
 
 const stopPointBreakChar = `\n`; // ENTER
 const replayConcurrency = 1;
@@ -9,14 +11,41 @@ const replayQueueMaxSize = Number.MAX_SAFE_INTEGER;
 const replayQueue = new Queue(replayConcurrency, replayQueueMaxSize);
 
 let replayEnabled = false;
+let reachedEndOfBuffers = false;
 let currentBuffer: buffers.Buffer | undefined;
 let currentBufferList: buffers.Buffer[] = [];
+let currentBufferPosition: number | undefined = 0;
+
+let typeCommand: vscode.Disposable;
+let backspaceCommand: vscode.Disposable;
+
+function advance() {
+  if (currentBufferPosition !== undefined) {
+    currentBufferPosition++;
+    currentBuffer = currentBufferList[currentBufferPosition];
+    console.log(currentBuffer);
+  }
+}
+
+function retreat() {
+  // move buffer one step backwards
+  if (replayEnabled && currentBufferPosition && currentBufferPosition > 0) {
+    reachedEndOfBuffers = false;
+    currentBufferPosition--;
+    currentBuffer = currentBufferList[currentBufferPosition];
+    console.log(currentBuffer);
+  }
+}
 
 export function start(context: vscode.ExtensionContext) {
+  typeCommand = vscode.commands.registerCommand("type", onType);
+  backspaceCommand = vscode.commands.registerCommand(
+    "jevakallio.vscode-hacker-typer.backspace", onBackspace);
   const storage = Storage.getInstance(context);
   storage.userChooseMacro((macro) => {
     currentBufferList = macro.buffers;
     currentBuffer = currentBufferList[0];
+    currentBufferPosition = 0;
     if (!currentBuffer) {
       vscode.window.showErrorMessage("No active recording");
       return;
@@ -28,6 +57,7 @@ export function start(context: vscode.ExtensionContext) {
     }
 
     replayEnabled = true;
+
     vscode.window.showInformationMessage(
       `Now playing ${currentBufferList.length} buffers from ${macro.name}!`
     );
@@ -36,8 +66,7 @@ export function start(context: vscode.ExtensionContext) {
 
 async function setStartingPoint(
   startingPoint: buffers.StartingPoint,
-  textEditor: vscode.TextEditor | undefined
-) {
+  textEditor: vscode.TextEditor | undefined) {
   let editor = textEditor;
   // if no open text editor, open one
   if (!editor) {
@@ -50,23 +79,7 @@ async function setStartingPoint(
     editor = await vscode.window.showTextDocument(document);
   } else {
     const existingEditor = editor;
-    await existingEditor.edit(edit => {
-      // update initial file content
-      const l = existingEditor.document.lineCount;
-      const range = new vscode.Range(
-        new vscode.Position(0, 0),
-        new vscode.Position(
-          l,
-          Math.max(
-            0,
-            existingEditor.document.lineAt(Math.max(0, l - 1)).text.length - 1
-          )
-        )
-      );
-
-      edit.delete(range);
-      edit.insert(new vscode.Position(0, 0), startingPoint.content);
-    });
+    replaceAllContent(existingEditor, startingPoint.content);
   }
 
   if (editor) {
@@ -81,7 +94,7 @@ async function setStartingPoint(
   }
 
   // move to next frame
-  currentBuffer = currentBufferList[startingPoint.position + 1];
+  advance();
 }
 
 export function currentlyReplaying() {
@@ -89,14 +102,22 @@ export function currentlyReplaying() {
 }
 
 function disable() {
+  typeCommand.dispose();
+  backspaceCommand.dispose();
   replayEnabled = false;
   currentBuffer = undefined;
+  reachedEndOfBuffers = false;
 }
 
-let reachedEndOfBuffers = false;
-
-export function onType({ text }: { text: string }) {
-  if (replayEnabled) {
+function onType({ text }: { text: string }) {
+  console.log("onType");
+  if (reachedEndOfBuffers) {
+    if (text === stopPointBreakChar) {
+      disable();
+    } else {
+      sound.playSound();
+    }
+  } else {
     replayQueue.add(
       () =>
         new Promise((resolve, reject) => {
@@ -108,20 +129,11 @@ export function onType({ text }: { text: string }) {
           }
         })
     );
-  } else if (reachedEndOfBuffers) {
-    if (text === stopPointBreakChar) {
-      reachedEndOfBuffers = false;
-    }
-  } else {
-    vscode.commands.executeCommand("default:type", { text });
   }
 }
 
-export function onBackspace() {
-  // move buffer one step backwards
-  if (replayEnabled && currentBuffer && currentBuffer.position > 0) {
-    currentBuffer = currentBufferList[currentBuffer.position - 1];
-  }
+function onBackspace() {
+  retreat();
 
   // actually execute backspace action
   vscode.commands.executeCommand("deleteLeft");
@@ -143,40 +155,39 @@ function updateSelections(
 
 function advanceBuffer(done: () => void, userInput: string) {
   const editor = vscode.window.activeTextEditor;
-  const buffer = currentBuffer;
 
   if (!editor) {
     vscode.window.showErrorMessage("No active editor");
     return;
   }
 
-  if (!buffer) {
+  if (!currentBuffer) {
     vscode.window.showErrorMessage("No buffer to advance");
     return;
   }
 
-  if (buffers.isStopPoint(buffer)) {
+  if (buffers.isStopPoint(currentBuffer)) {
     if (userInput === stopPointBreakChar) {
-      currentBuffer = currentBufferList[buffer.position + 1];
+      advance();
     }
 
     return done();
   }
 
-  const { changes, selections } = <buffers.Frame>buffer;
+  const { changeInfo, selections } = <buffers.Frame>currentBuffer;
+  const { changes } = changeInfo;
 
   const updateSelectionAndAdvanceToNextBuffer = () => {
     if (selections.length) {
       updateSelections(selections, editor);
     }
 
-    currentBuffer = currentBufferList[buffer.position + 1];
+    advance();
 
     // Ran out of buffers? Disable type capture.
     if (!currentBuffer) {
       vscode.window.showInformationMessage("Done!");
       reachedEndOfBuffers = true;
-      disable();
     }
 
     done();
@@ -188,25 +199,5 @@ function advanceBuffer(done: () => void, userInput: string) {
       .then(updateSelectionAndAdvanceToNextBuffer);
   } else {
     updateSelectionAndAdvanceToNextBuffer();
-  }
-}
-
-function applyContentChanges(
-  changes: vscode.TextDocumentContentChangeEvent[],
-  edit: vscode.TextEditorEdit
-) {
-  changes.forEach(change => applyContentChange(change, edit));
-}
-
-function applyContentChange(
-  change: vscode.TextDocumentContentChangeEvent,
-  edit: vscode.TextEditorEdit
-) {
-  if (change.text === "") {
-    edit.delete(change.range);
-  } else if (change.rangeLength === 0) {
-    edit.insert(change.range.start, change.text);
-  } else {
-    edit.replace(change.range, change.text);
   }
 }
