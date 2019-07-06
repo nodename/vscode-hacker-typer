@@ -115,6 +115,15 @@ function registerRecordingCommands() {
   return [insertStopCommand, insertNamedStopCommand, undoCommand, saveMacroCommand];
 }
 
+function registerRecordingHooks() {
+  const commands: vscode.Disposable[] = registerRecordingCommands();
+  const eventHandlers: vscode.Disposable[] = registerRecordingEventHandlers();
+
+  recordingHooks = vscode.Disposable.from(
+    ...commands, ...eventHandlers
+  );
+}
+
 let storage: Storage | null = null;
 let bufferList: buffers.Buffer[] = [];
 
@@ -164,106 +173,106 @@ export function start(context: vscode.ExtensionContext) {
   }
 }
 
+let currentActiveDoc: vscode.TextDocument;
+let currentOpenEditor: vscode.TextEditor | undefined;
+let currentChangeInfo: buffers.ChangeInfo;
+
+function registerRecordingEventHandlers() {
+  const onDidChangeTextDocumentHandler = vscode.workspace.onDidChangeTextDocument(
+    (event: vscode.TextDocumentChangeEvent) => {
+      if (event.document === currentActiveDoc) {
+        if (currentlyReplaying()) {
+          return;
+        }
+
+        const newContent = currentActiveDoc.getText();
+        const diff = Diff.createPatch("", documentContent, newContent);
+        const undo = Diff.createPatch("", newContent, documentContent);
+
+        documentContent = newContent;
+
+        // store changes, selection change will commit
+        currentChangeInfo = {
+          changes: event.contentChanges,
+          diff: diff,
+          undo: undo
+        };
+      } else {
+        console.log('Non-watched doc changed');
+      }
+    });
+
+  const onDidChangeTextEditorSelectionHandler = vscode.window.onDidChangeTextEditorSelection(
+    (event: vscode.TextEditorSelectionChangeEvent) => {
+      if (currentlyReplaying()) {
+        return;
+      }
+
+      // Only allow recording from one active editor at a time
+      // Breaks when you leave but that's fine for now.
+      if (event.textEditor !== currentOpenEditor) {
+        // TODO ask if user wants to save current recording
+        return;
+      }
+
+      const changeInfo = currentChangeInfo;
+      currentChangeInfo = { changes: [], diff: "", undo: "" };
+
+      const selections = event.selections || [];
+
+      const selection = selections[0];
+      const selectedText = currentActiveDoc.getText(selection);
+
+      console.log("");
+      console.log(buffers.describeChange(changeInfo));
+      console.log(buffers.describeSelection(selection, selectedText));
+
+      bufferList.push({ changeInfo: changeInfo, selections: selections });
+    });
+
+  const onDidCloseTextDocumentHandler = vscode.workspace.onDidCloseTextDocument(
+    (closedDoc: vscode.TextDocument) => {
+      if (closedDoc === currentActiveDoc) {
+        console.log('Watched doc was closed');
+      } else {
+        console.log('Non-watched doc closed');
+      }
+    });
+
+  const onDidChangeActiveTextEditorHandler = vscode.window.onDidChangeActiveTextEditor(
+    (newEditor: vscode.TextEditor | undefined) => {
+      // ask if user wants to save current recording and stop recording
+    });
+
+  return [onDidChangeTextDocumentHandler,
+    onDidChangeTextEditorSelectionHandler,
+    onDidCloseTextDocumentHandler,
+    onDidChangeActiveTextEditorHandler];
+}
+
+
 function startRecording(isNewRecording: boolean) {
   if (isNewRecording) {
     bufferList = [];
   }
 
-  let currentOpenEditor = vscode.window.activeTextEditor;
-  if (currentOpenEditor) {
-    // start watching the currently open doc
-    // TODO if not new recording, check if doc has changed
-    let currentActiveDoc = currentOpenEditor.document;
-    let currentChangeInfo: buffers.ChangeInfo;
-
-    function registerEventHandlers() {
-      const onDidChangeTextDocumentHandler = vscode.workspace.onDidChangeTextDocument(
-        (event: vscode.TextDocumentChangeEvent) => {
-          if (event.document === currentActiveDoc) {
-            if (currentlyReplaying()) {
-              return;
-            }
-
-            const newContent = currentActiveDoc.getText();
-            const diff = Diff.createPatch("", documentContent, newContent);
-            const undo = Diff.createPatch("", newContent, documentContent);
-
-            documentContent = newContent;
-
-            // store changes, selection change will commit
-            currentChangeInfo = {
-              changes: event.contentChanges,
-              diff: diff,
-              undo: undo
-            };
-          } else {
-            console.log('Non-watched doc changed');
-          }
-        });
-
-      const onDidChangeTextEditorSelectionHandler = vscode.window.onDidChangeTextEditorSelection(
-        (event: vscode.TextEditorSelectionChangeEvent) => {
-          if (currentlyReplaying()) {
-            return;
-          }
-
-          // Only allow recording from one active editor at a time
-          // Breaks when you leave but that's fine for now.
-          if (event.textEditor !== currentOpenEditor) {
-            // TODO ask if user wants to save current recording
-            return;
-          }
-
-          const changeInfo = currentChangeInfo;
-          currentChangeInfo = { changes: [], diff: "", undo: "" };
-
-          const selections = event.selections || [];
-
-          const selection = selections[0];
-          const selectedText = currentActiveDoc.getText(selection);
-
-          console.log("");
-          console.log(buffers.describeChange(changeInfo));
-          console.log(buffers.describeSelection(selection, selectedText));
-
-          bufferList.push({ changeInfo: changeInfo, selections: selections });
-        });
-
-      const onDidCloseTextDocumentHandler = vscode.workspace.onDidCloseTextDocument(
-        (closedDoc: vscode.TextDocument) => {
-          if (closedDoc === currentActiveDoc) {
-            console.log('Watched doc was closed');
-          } else {
-            console.log('Non-watched doc closed');
-          }
-        });
-
-      const onDidChangeActiveTextEditorHandler = vscode.window.onDidChangeActiveTextEditor(
-        (newEditor: vscode.TextEditor | undefined) => {
-          // ask if user wants to save current recording and stop recording
-        });
-
-      return [onDidChangeTextDocumentHandler,
-        onDidChangeTextEditorSelectionHandler,
-        onDidCloseTextDocumentHandler,
-        onDidChangeActiveTextEditorHandler];
-    }
-
-    if (currentlyRecording() === false) {
-      disposeRecordingHooks();
-
-      const commands: vscode.Disposable[] = registerRecordingCommands();
-      const eventHandlers: vscode.Disposable[] = registerEventHandlers();
-
-      recordingHooks = vscode.Disposable.from(
-        ...commands, ...eventHandlers
-      );
-    }
-
-    if (isNewRecording) {
-      insertStartingPoint(bufferList, currentOpenEditor);
-    }
-
-    vscode.window.showInformationMessage("Hacker Typer is now recording!");
+  currentOpenEditor = vscode.window.activeTextEditor;
+  if (!currentOpenEditor) {
+    return;
   }
+
+  // start watching the currently open doc
+  // TODO if not new recording, check if doc has changed
+  currentActiveDoc = currentOpenEditor.document;
+
+  if (currentlyRecording() === false) {
+    disposeRecordingHooks();
+    registerRecordingHooks();
+  }
+
+  if (isNewRecording) {
+    insertStartingPoint(bufferList, currentOpenEditor);
+  }
+
+  vscode.window.showInformationMessage("Hacker Typer is now recording!");
 }
