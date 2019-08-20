@@ -26,7 +26,7 @@
     "activationEvents": [
       "onCommand:jevakallio.vscode-hacker-typer.recordMacro",
       "onCommand:jevakallio.vscode-hacker-typer.playMacro",
-      "onCommand:jevakallio.vscode-hacker-typer.removeMacro",
+      "onCommand:jevakallio.vscode-hacker-typer.deleteMacro",
       "onCommand:jevakallio.vscode-hacker-typer.exportMacro",
       "onCommand:jevakallio.vscode-hacker-typer.importMacro"
     ],
@@ -44,7 +44,7 @@
           "key": "cmd+shift+t r"
         },
         {
-          "command": "jevakallio.vscode-hacker-typer.removeMacro",
+          "command": "jevakallio.vscode-hacker-typer.deleteMacro",
           "key": "cmd+shift+t d"
         },
         {
@@ -66,10 +66,6 @@
         {
           "command": "jevakallio.vscode-hacker-typer.insertStop",
           "key": "cmd+shift+t i"
-        },
-        {
-          "command": "jevakallio.vscode-hacker-typer.insertNamedStop",
-          "key": "cmd+shift+t n"
         },
         {
           "command": "jevakallio.vscode-hacker-typer.undo",
@@ -103,18 +99,13 @@
           "category": "HackerTyper"
         },
         {
-          "command": "jevakallio.vscode-hacker-typer.removeMacro",
-          "title": "Remove Macro",
+          "command": "jevakallio.vscode-hacker-typer.deleteMacro",
+          "title": "Delete Macro",
           "category": "HackerTyper"
         },
         {
           "command": "jevakallio.vscode-hacker-typer.insertStop",
           "title": "Insert Soft Stop Point",
-          "category": "HackerTyper"
-        },
-        {
-          "command": "jevakallio.vscode-hacker-typer.insertNamedStop",
-          "title": "Insert Named Stop Point",
           "category": "HackerTyper"
         },
         {

@@ -10,6 +10,8 @@ Hacker Typer allows you to record yourself programming, and to replay the same k
 
 ⬇️ **Download the extension from [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=jevakallio.vscode-hacker-typer)**
 
+
+
 **🗯 "This is Unix, I know this! Asdfkdhsur dueuekdnfh sueekgkvins dicodksbry"** — [@mwarger](https://twitter.com/mwarger)
 
 ## Features
@@ -22,34 +24,61 @@ Hacker Typer allows you to record yourself programming, and to replay the same k
 ### Record a macro
 
 1. Open a file or a new VSCode window.
-2. Execute `HackerTyper: Record Macro` command from the command palette.
+2. Execute `HackerTyper: Record Macro` command (`Cmd+Shift+T R`) from the command palette.
 3. The current content and selections of the active editor will be snapshotted.
-4. Start typing code. Every keystore is recorded into an in-memory buffer, including deletions, selection changes, etc.
-5. When you're ready, execute `HackerTyper: Save Macro` command from the command palette.
-6. Give your macro a name.
-7. You're done!
+4. Start typing code. Every keystroke is recorded into an in-memory buffer, including deletions, selection changes, etc.
+5. If you make a mistake you can back up by typing `Cmd+Shift+T U` (the `Undo Last Recorded Buffer` command).
+6. When you're ready, execute `HackerTyper: Save Macro` command from the command palette.
+7. Give your macro a name.
+8. You're done!
 
 ### Replay a macro
 
 1. Open a file or a new VSCode window.
-2. Execute `HackerTyper: Play Macro` command from the command palette.
+2. Execute `HackerTyper: Play Macro` command (`Cmd+Shift+T P`) from the command palette.
 3. Pick your previously saved macro.
 4. The active workspace will be reset to the initial starting point from the beginning of the recording. If there is no active text editor, a new anonymous unsaved file will be opened.
 5. Start hammering your keyboard like a mad-person.
 6. WHOA HOW ARE YOU TYPING SO FAST
-7. `Cmd+Shift+Backspace` will move the buffer backwards. Any other key moves it forward.
+7. `Cmd+Shift+Backspace` (the `Erase Previous Frame` command) will move the buffer backwards. Any other key moves it forward.
 8. Feel free to move around the file, highlight code etc. When you continue typing, the next character will be inserted where you did while recording.
+9. A sound is played when you reach the end of your macro.
 
 ### Stop points
 
-While in recording mode, execute `HackerTyper: Insert Soft Stop Point` command from the command palette.
+While in recording mode, execute the `HackerTyper: Insert Stop Point` command (`Cmd+Shift+T I`) from the command palette.
 
 When you hit a stop point while in replay mode, you need to press `ENTER` to break out of the stop point. All other keystrokes are ignored until you break out.
+
+NB: A stop point is _AUTOMATICALLY_ added at the end of your recording.
+
+## Command summary
+
+### Top-level commands
+
+| Command | Key Binding | Heading 3 |  
+|-----------|:-----------:|-----------:|  
+| `HackerTyper: Record Macro` | Cmd+Shift+T R | Cell A3 |  
+| `HackerTyper: Play Macro` | Cmd+Shift+T P | Cell B3<br/>second line of text |
+| `HackerTyper: Delete Macro` | Cmd+Shift+T D | |
+
+### Recording commands
+
+| Command | Key Binding | Heading 3 |  
+|-----------|:-----------:|-----------:|  
+| `HackerTyper: Insert Stop Point` | Cmd+Shift+T I | |
+| `HackerTyper: Undo Last Recorded Buffer` | Cmd+Shift+T U | |
+| `HackerTyper: Save Macro` | Cmd+Shift+T S | |
+
+### Replay commands
+
+| Command | Key Binding | Heading 3 |  
+|-----------|:-----------:|-----------:|  
+| `HackerTyper: Erase Previous Frame` |  Cmd+Shift+Backspace | |
 
 ## Current limitations
 
 - Only supports single file macros [#11](https://github.com/jevakallio/vscode-hacker-typer/issues/11)
-- If you make a mistake while recording, you have to start over. User experience could be wildly improved here
 - When starting from existing active editor, the document language is not restored from the macro (see [vscode#1800](https://github.com/Microsoft/vscode/issues/1800))
 
 ## License

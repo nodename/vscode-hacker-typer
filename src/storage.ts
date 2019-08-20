@@ -82,7 +82,7 @@ export default class Storage {
     });
   }
 
-  public remove(name: string): void {
+  public delete(name: string): void {
     this._listings.forget(name);
     this._macros.forget(name);
   }
@@ -118,6 +118,10 @@ export default class Storage {
 
   public userChooseMacro(callback: (macro: Macro) => void) {
     const items = this.list();
+    if (items.length === 0) {
+      vscode.window.showInformationMessage(`No macros found`);
+      return;
+    }
     vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
       if (!picked) {
         return;

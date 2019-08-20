@@ -4,36 +4,75 @@ import * as vscode from "vscode";
 import Storage from "./storage";
 import * as recording from "./record";
 import * as replay from "./replay";
+import { interpret, Interpreter } from "xstate";
+import { TyperContext } from "./stateTypes";
+import { typerMachine } from "./states";
+
+let context: vscode.ExtensionContext;
+
+let stateService: Interpreter<TyperContext>;
+
+type FnType = (context: vscode.ExtensionContext) => void;
+type FnDict = Record<string, FnType>;
+// This FnDict maps state-machine actions to their implementations.
+// the context is passed as an argument to each implementation function.
+const actionImplementations: FnDict = {
+  registerTopLevelCommands: registerTopLevelCommands,
+  enableRecording: recording.registerRecordingHooks,
+  startRecording: recording.start,
+  disableRecording: recording.disposeRecordingHooks,
+  enablePlaying: replay.registerPlayingCommands,
+  startPlaying: startPlaying,
+  disablePlaying: replay.disable
+};
 
 // this method is called when your extension is activated
-// your extension is activated the very first time one of its commands is executed
-export function activate(context: vscode.ExtensionContext) {
+// your extension is activated the first time one of its commands is executed
+export function activate(aContext: vscode.ExtensionContext) {
   // Use the console to output diagnostic information (console.log) and errors (console.error)
   // This line of code will only be executed once when your extension is activated
   console.log(
     'Congratulations, your extension "vscode-hacker-typer" is now active!'
   );
 
+  context = aContext;
 
+  stateService = interpret<TyperContext>(typerMachine, {
+    execute: false // I'm going to handle the execution
+    // because I don't want to specify concrete action implementations in the statechart itself.
+    // The implementations in turn know nothing about the state machine other than
+    // the events they send to it.
+  });
+  stateService.onTransition(state => {
+    console.log(`Transition to ${state.value} state`);
+    state.actions.forEach(action => {
+      actionImplementations[action.type](context);
+    });
+  });
+  stateService.start();
+}
+
+function startPlaying(context: vscode.ExtensionContext) {
+  replay.start(context, stateService);
+}
+
+// These commands are available whenever the extension is active:
+function registerTopLevelCommands(context: vscode.ExtensionContext) {
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with  registerCommand
   // The commandId parameter must match the command field in package.json
   let record = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.recordMacro",
-    () => {
-      recording.start(context);
-    }
+    () => { stateService.send('RECORD'); }
   );
 
   let play = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.playMacro",
-    () => {
-      replay.start(context);
-    }
+    () => { stateService.send('PLAY'); }
   );
 
-  let remove = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.removeMacro",
+  let delte = vscode.commands.registerCommand(
+    "jevakallio.vscode-hacker-typer.deleteMacro",
     () => {
       const storage = Storage.getInstance(context);
       const items = storage.list();
@@ -42,8 +81,8 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        storage.remove(picked);
-        vscode.window.showInformationMessage(`Removed "${picked}"`);
+        storage.delete(picked);
+        vscode.window.showInformationMessage(`Deleted "${picked}"`);
       });
     }
   );
@@ -100,15 +139,16 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        for (let i = 0; i < files.length; i++) {
-          storage.imprt(files[i], (err) => {
+        for (var file in files) {
+          const uri = vscode.Uri.parse(file);
+          storage.imprt(uri, (err) => {
             if (err) {
-              vscode.window.showErrorMessage(`Error importing ${files[i].fsPath}`);
+              vscode.window.showErrorMessage(`Error importing ${uri.fsPath}`);
               console.log(err);
               return;
             }
 
-            vscode.window.showInformationMessage(`Imported "${files[i].fsPath}"`);
+            vscode.window.showInformationMessage(`Imported "${uri.fsPath}"`);
           });
         }
       });
@@ -116,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // These will automatically be disposed when the extension is deactivated:
-  context.subscriptions.push(record, play, remove, exprt, imprt);
+  context.subscriptions.push(record, play, delte, exprt, imprt);
 }
 
 // this method is called when your extension is deactivated

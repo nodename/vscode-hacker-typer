@@ -4,13 +4,16 @@ import * as sound from "./sound";
 import Storage from "./storage";
 import * as Queue from "promise-queue";
 import { applyContentChanges, replaceAllContent } from "./edit";
+import { Interpreter } from "xstate";
+import { TyperContext } from "./stateTypes";
+
+let stateService: Interpreter<TyperContext>;
 
 const stopPointBreakChar = `\n`; // ENTER
 const replayConcurrency = 1;
 const replayQueueMaxSize = Number.MAX_SAFE_INTEGER;
 const replayQueue = new Queue(replayConcurrency, replayQueueMaxSize);
 
-let replayEnabled = false;
 let reachedEndOfBuffers = false;
 let currentBuffer: buffers.Buffer | undefined;
 let currentBufferList: buffers.Buffer[] = [];
@@ -23,24 +26,31 @@ function advance() {
   if (currentBufferPosition !== undefined) {
     currentBufferPosition++;
     currentBuffer = currentBufferList[currentBufferPosition];
-    console.log(currentBuffer);
   }
 }
 
 function retreat() {
   // move buffer one step backwards
-  if (replayEnabled && currentBufferPosition && currentBufferPosition > 0) {
+  if (currentBufferPosition && currentBufferPosition > 0) {
     reachedEndOfBuffers = false;
     currentBufferPosition--;
     currentBuffer = currentBufferList[currentBufferPosition];
-    console.log(currentBuffer);
   }
 }
 
-export function start(context: vscode.ExtensionContext) {
+export function registerPlayingCommands() {
   typeCommand = vscode.commands.registerCommand("type", onType);
   backspaceCommand = vscode.commands.registerCommand(
     "jevakallio.vscode-hacker-typer.backspace", onBackspace);
+}
+
+function disposePlayingCommands() {
+  typeCommand.dispose();
+  backspaceCommand.dispose();
+}
+
+export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext>) {
+  stateService = service;
   const storage = Storage.getInstance(context);
   storage.userChooseMacro((macro) => {
     currentBufferList = macro.buffers;
@@ -55,8 +65,6 @@ export function start(context: vscode.ExtensionContext) {
     if (buffers.isStartingPoint(currentBuffer)) {
       setStartingPoint(currentBuffer, textEditor);
     }
-
-    replayEnabled = true;
 
     vscode.window.showInformationMessage(
       `Now playing ${currentBufferList.length} buffers from ${macro.name}!`
@@ -97,27 +105,14 @@ async function setStartingPoint(
   advance();
 }
 
-export function currentlyReplaying() {
-  return replayEnabled;
-}
-
-function disable() {
-  typeCommand.dispose();
-  backspaceCommand.dispose();
-  replayEnabled = false;
+export function disable() {
+  disposePlayingCommands();
   currentBuffer = undefined;
   reachedEndOfBuffers = false;
 }
 
 function onType({ text }: { text: string }) {
-  console.log("onType");
-  if (reachedEndOfBuffers) {
-    if (text === stopPointBreakChar) {
-      disable();
-    } else {
-      sound.playSound();
-    }
-  } else {
+  function queueText(text: string) {
     replayQueue.add(
       () =>
         new Promise((resolve, reject) => {
@@ -129,6 +124,19 @@ function onType({ text }: { text: string }) {
           }
         })
     );
+  }
+
+  console.log("onType");
+  if (reachedEndOfBuffers) {
+    if (text === stopPointBreakChar) {
+      stateService.send('DONE_PLAYING');
+    } else {
+      // have tried to replay beyond the terminating stopPointBreakChar:
+      sound.playSound();
+      vscode.window.showErrorMessage("Hit ENTER to exit playback");
+    }
+  } else {
+    queueText(text);
   }
 }
 
