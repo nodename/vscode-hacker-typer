@@ -56,25 +56,25 @@ NB: A stop point is _AUTOMATICALLY_ added at the end of your recording.
 
 ### Top-level commands
 
-| Command | Key Binding | Heading 3 |  
-|-----------|:-----------:|-----------:|  
-| `HackerTyper: Record Macro` | Cmd+Shift+T R | Cell A3 |  
-| `HackerTyper: Play Macro` | Cmd+Shift+T P | Cell B3<br/>second line of text |
+| Command | Key Binding |
+|-----------|:-----------:|
+| `HackerTyper: Record Macro` | Cmd+Shift+T R |
+| `HackerTyper: Play Macro` | Cmd+Shift+T P |
 | `HackerTyper: Delete Macro` | Cmd+Shift+T D | |
 
 ### Recording commands
 
-| Command | Key Binding | Heading 3 |  
-|-----------|:-----------:|-----------:|  
-| `HackerTyper: Insert Stop Point` | Cmd+Shift+T I | |
-| `HackerTyper: Undo Last Recorded Buffer` | Cmd+Shift+T U | |
-| `HackerTyper: Save Macro` | Cmd+Shift+T S | |
+| Command | Key Binding |
+|-----------|:-----------:|
+| `HackerTyper: Insert Stop Point` | Cmd+Shift+T I |
+| `HackerTyper: Undo Last Recorded Buffer` | Cmd+Shift+T U |
+| `HackerTyper: Save Macro` | Cmd+Shift+T S |
 
 ### Replay commands
 
-| Command | Key Binding | Heading 3 |  
-|-----------|:-----------:|-----------:|  
-| `HackerTyper: Erase Previous Frame` |  Cmd+Shift+Backspace | |
+| Command | Key Binding |
+|-----------|:-----------:|
+| `HackerTyper: Erase Previous Frame` |  Cmd+Shift+Backspace |
 
 ## Current limitations
 
