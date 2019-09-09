@@ -83,21 +83,21 @@ let recordingHooks: vscode.Disposable | null = null;
 
 function registerRecordingCommands() {
   const insertStopCommand = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.insertStop",
+    "nodename.vscode-hacker-typer-fork.insertStop",
     () => {
       insertStop(bufferList, null);
     }
   );
 
   const undoCommand = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.undo",
+    "nodename.vscode-hacker-typer-fork.undo",
     () => {
       undoLast(bufferList);
     }
   );
 
   const saveMacroCommand = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.saveMacro",
+    "nodename.vscode-hacker-typer-fork.saveMacro",
     () => {
       saveRecording(bufferList, storage);
     }

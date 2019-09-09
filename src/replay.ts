@@ -41,7 +41,7 @@ function retreat() {
 export function registerPlayingCommands() {
   typeCommand = vscode.commands.registerCommand("type", onType);
   backspaceCommand = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.backspace", onBackspace);
+    "nodename.vscode-hacker-typer-fork.backspace", onBackspace);
 }
 
 function disposePlayingCommands() {

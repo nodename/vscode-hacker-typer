@@ -32,7 +32,7 @@ export function activate(aContext: vscode.ExtensionContext) {
   // Use the console to output diagnostic information (console.log) and errors (console.error)
   // This line of code will only be executed once when your extension is activated
   console.log(
-    'Congratulations, your extension "vscode-hacker-typer" is now active!'
+    'Congratulations, your extension "vscode-hacker-typer-fork" is now active!'
   );
 
   context = aContext;
@@ -62,17 +62,17 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
   // Now provide the implementation of the command with  registerCommand
   // The commandId parameter must match the command field in package.json
   let record = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.recordMacro",
+    "nodename.vscode-hacker-typer-fork.recordMacro",
     () => { stateService.send('RECORD'); }
   );
 
   let play = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.playMacro",
+    "nodename.vscode-hacker-typer-fork.playMacro",
     () => { stateService.send('PLAY'); }
   );
 
   let delte = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.deleteMacro",
+    "nodename.vscode-hacker-typer-fork.deleteMacro",
     () => {
       const storage = Storage.getInstance(context);
       const items = storage.list();
@@ -88,7 +88,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
   );
 
   let exprt = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.exportMacro",
+    "nodename.vscode-hacker-typer-fork.exportMacro",
     () => {
       const storage = Storage.getInstance(context);
       const items = storage.list();
@@ -122,7 +122,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
   );
 
   let imprt = vscode.commands.registerCommand(
-    "jevakallio.vscode-hacker-typer.importMacro",
+    "nodename.vscode-hacker-typer-fork.importMacro",
     () => {
       const storage = Storage.getInstance(context);
 

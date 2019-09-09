@@ -1,19 +1,32 @@
 {
-  "name": "vscode-hacker-typer",
-  "displayName": "VSCode HackerTyper",
+  "name": "vscode-hacker-typer-fork",
+  "displayName": "VSCode HackerTyper modified by nodename",
   "description": "Hacker Typer extension for looking cool while live coding",
-  "version": "0.1.2-alan",
-  "publisher": "jevakallio",
+  "keywords": [
+    "vscode"
+  ],
+  "version": "0.1.2",
+  "publisher": "nodename",
   "author": {
     "name": "Jani Eväkallio"
   },
+  "contributors": [
+    {
+      "name": "Alan Shaw",
+      "email": "alan@nodename.com"
+    },
+    {
+      "name": "Kael Kirk",
+      "email": "kirkkael@gmail.com"
+    }
+  ],
   "license": "MIT",
   "engines": {
     "vscode": "^1.27.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jevakallio/vscode-hacker-typer"
+    "url": "https://github.com/nodename/vscode-hacker-typer"
   },
   "icon": "docs/hackertyper-icon.png",
   "galleryBanner": {
@@ -24,97 +37,97 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:jevakallio.vscode-hacker-typer.recordMacro",
-    "onCommand:jevakallio.vscode-hacker-typer.playMacro",
-    "onCommand:jevakallio.vscode-hacker-typer.deleteMacro",
-    "onCommand:jevakallio.vscode-hacker-typer.exportMacro",
-    "onCommand:jevakallio.vscode-hacker-typer.importMacro"
+    "onCommand:nodename.vscode-hacker-typer-fork.recordMacro",
+    "onCommand:nodename.vscode-hacker-typer-fork.playMacro",
+    "onCommand:nodename.vscode-hacker-typer-fork.deleteMacro",
+    "onCommand:nodename.vscode-hacker-typer-fork.exportMacro",
+    "onCommand:nodename.vscode-hacker-typer-fork.importMacro"
   ],
   "main": "./out/extension",
   "contributes": {
     "keybindings": [
       {
-        "command": "jevakallio.vscode-hacker-typer.backspace",
+        "command": "nodename.vscode-hacker-typer-fork.backspace",
         "when": "editorTextFocus",
         "key": "cmd+shift+backspace"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.recordMacro",
+        "command": "nodename.vscode-hacker-typer-fork.recordMacro",
         "when": "editorTextFocus",
         "key": "cmd+shift+t r"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.deleteMacro",
+        "command": "nodename.vscode-hacker-typer-fork.deleteMacro",
         "key": "cmd+shift+t d"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.exportMacro",
+        "command": "nodename.vscode-hacker-typer-fork.exportMacro",
         "key": "cmd+shift+t e"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.importMacro",
+        "command": "nodename.vscode-hacker-typer-fork.importMacro",
         "key": "cmd+shift+t m"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.playMacro",
+        "command": "nodename.vscode-hacker-typer-fork.playMacro",
         "key": "cmd+shift+t p"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.saveMacro",
+        "command": "nodename.vscode-hacker-typer-fork.saveMacro",
         "key": "cmd+shift+t s"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.insertStop",
+        "command": "nodename.vscode-hacker-typer-fork.insertStop",
         "key": "cmd+shift+t i"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.undo",
+        "command": "nodename.vscode-hacker-typer-fork.undo",
         "key": "cmd+shift+t u"
       }
     ],
     "commands": [
       {
-        "command": "jevakallio.vscode-hacker-typer.recordMacro",
+        "command": "nodename.vscode-hacker-typer-fork.recordMacro",
         "title": "Record Macro",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.playMacro",
+        "command": "nodename.vscode-hacker-typer-fork.playMacro",
         "title": "Play Macro",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.saveMacro",
+        "command": "nodename.vscode-hacker-typer-fork.saveMacro",
         "title": "Save Macro",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.exportMacro",
+        "command": "nodename.vscode-hacker-typer-fork.exportMacro",
         "title": "Export Macro",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.importMacro",
+        "command": "nodename.vscode-hacker-typer-fork.importMacro",
         "title": "Import Macro",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.deleteMacro",
+        "command": "nodename.vscode-hacker-typer-fork.deleteMacro",
         "title": "Delete Macro",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.insertStop",
+        "command": "nodename.vscode-hacker-typer-fork.insertStop",
         "title": "Insert Soft Stop Point",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.undo",
+        "command": "nodename.vscode-hacker-typer-fork.undo",
         "title": "Undo Last Recorded Buffer",
         "category": "HackerTyper"
       },
       {
-        "command": "jevakallio.vscode-hacker-typer.backspace",
+        "command": "nodename.vscode-hacker-typer-fork.backspace",
         "title": "Erase Previous Frame",
         "category": "HackerTyper"
       }
@@ -128,8 +141,8 @@
     "test": "npm run compile && node ./node_modules/vscode/bin/test"
   },
   "devDependencies": {
-    "@types/mocha": "^5.2.7",
-    "@types/node": "^12.7.3",
+    "@types/mocha": "^2.2.42",
+    "@types/node": "^8.10.53",
     "@types/promise-queue": "^2.2.0",
     "tslint": "^5.19.0",
     "typescript": "^3.6.2",
@@ -141,6 +154,7 @@
     "music-metadata": "^4.4.0",
     "node-wav-player": "^0.1.0",
     "promise-queue": "^2.2.5",
+    "token-types": "1.0.2",
     "vscode-cache": "^0.3.0"
   }
 }
