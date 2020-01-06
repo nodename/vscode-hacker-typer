@@ -19,7 +19,7 @@ type FnDict = Record<string, FnType>;
 const actionImplementations: FnDict = {
   registerTopLevelCommands: registerTopLevelCommands,
   enableRecording: recording.registerRecordingHooks,
-  startRecording: recording.start,
+  startRecording: startRecording,
   disableRecording: recording.disposeRecordingHooks,
   enablePlaying: replay.registerPlayingCommands,
   startPlaying: startPlaying,
@@ -50,6 +50,10 @@ export function activate(aContext: vscode.ExtensionContext) {
     });
   });
   stateService.start();
+}
+
+function startRecording(context: vscode.ExtensionContext) {
+  recording.start(context, stateService);
 }
 
 function startPlaying(context: vscode.ExtensionContext) {

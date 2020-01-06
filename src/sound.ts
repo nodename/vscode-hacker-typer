@@ -6,7 +6,7 @@ const path = require("path");
 const state = { isPlaying: false };
 
 export async function playSound() {
-    let soundFileName = "error.wav";
+    let soundFileName = "beep-26.wav";
     let soundFilePath = path.join(
         __dirname,
         "..",

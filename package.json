@@ -77,6 +77,10 @@
         "key": "cmd+shift+t s"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.cancelRecording",
+        "key": "cmd+shift+t c"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.insertStop",
         "key": "cmd+shift+t i"
       },
@@ -99,6 +103,11 @@
       {
         "command": "nodename.vscode-hacker-typer-fork.saveMacro",
         "title": "Save Macro",
+        "category": "HackerTyper"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.cancelRecording",
+        "title": "Cancel Recording",
         "category": "HackerTyper"
       },
       {

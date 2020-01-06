@@ -12,4 +12,4 @@ export type TyperEvent =
     | { type: 'RECORD' };
 */
 
-export interface TyperContext {};
+export interface TyperContext {}

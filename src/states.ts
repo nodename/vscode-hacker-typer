@@ -22,7 +22,7 @@ const typerStates = {
             entry: ['enableRecording', 'startRecording'],
             exit: 'disableRecording',
             on: {
-                PLAY: 'playing'
+                DONE_RECORDING: 'waiting'
             }
         },
         playing: {

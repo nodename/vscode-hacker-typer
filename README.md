@@ -30,9 +30,10 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 3. The current content and selections of the active editor will be snapshotted.
 4. Start typing code. Every keystroke is recorded into an in-memory buffer, including deletions, selection changes, etc.
 5. If you make a mistake you can back up by typing `Cmd+Shift+T U` (the `Undo Last Recorded Buffer` command).
-6. When you're ready, execute `HackerTyper: Save Macro` command from the command palette.
-7. Give your macro a name.
-8. You're done!
+6. You can cancel recording with `HackerTyper: Cancel Recording` (`Cmd+Shift+T C`)
+7. When you're ready, execute `HackerTyper: Save Macro` command from the command palette (or `Cmd+Shift+T S`.)
+8. Give your macro a name.
+9. You're done!
 
 ### Replay a macro
 
@@ -75,6 +76,9 @@ Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator)
 | `HackerTyper: Insert Stop Point` | Cmd+Shift+T I |
 | `HackerTyper: Undo Last Recorded Buffer` | Cmd+Shift+T U |
 | `HackerTyper: Save Macro` | Cmd+Shift+T S |
+| `HackerTyper: Cancel Recording` | Cmd+Shift+T C |
+
+NOTE! The only way to exit the recording state is by canceling or saving.
 
 ### Replay commands
 
