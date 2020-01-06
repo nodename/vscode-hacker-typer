@@ -9,7 +9,7 @@ const typerStates = {
         start: {
             entry: 'registerTopLevelCommands',
             on: {
-                '': 'waiting' // null event '' always occurs once state is entered; causes immediate transition
+                '': 'waiting' // the null event '' always occurs once state is entered; causes immediate transition
             }
         },
         waiting: {

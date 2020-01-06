@@ -33,7 +33,7 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 6. You can cancel recording with `HackerTyper: Cancel Recording` (`Cmd+Shift+T C`)
 7. When you're ready, execute `HackerTyper: Save Macro` command from the command palette (or `Cmd+Shift+T S`.)
 8. Give your macro a name.
-9. You're done!
+9. You're done! Or if you wish, you can continue recording the macro.
 
 ### Replay a macro
 
