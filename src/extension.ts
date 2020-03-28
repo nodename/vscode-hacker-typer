@@ -7,6 +7,7 @@ import * as replay from "./replay";
 import { interpret, Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
 import { typerMachine } from "./states";
+import * as statusBar from "./statusBar";
 
 let context: vscode.ExtensionContext;
 
@@ -35,6 +36,8 @@ export function activate(aContext: vscode.ExtensionContext) {
     'Congratulations, your extension "vscode-hacker-typer-fork" is now active!'
   );
 
+  statusBar.init();
+  
   context = aContext;
 
   stateService = interpret<TyperContext>(typerMachine, {
@@ -63,20 +66,24 @@ function startPlaying(context: vscode.ExtensionContext) {
 // These commands are available whenever the extension is active:
 function registerTopLevelCommands(context: vscode.ExtensionContext) {
   // The command has been defined in the package.json file
-  // Now provide the implementation of the command with  registerCommand
-  // The commandId parameter must match the command field in package.json
+  // Now provide the implementation of the command with registerCommand
+  // The commandId must match the command field in package.json
+
+  let recordMacroCommandId = "nodename.vscode-hacker-typer-fork.recordMacro";
   let record = vscode.commands.registerCommand(
-    "nodename.vscode-hacker-typer-fork.recordMacro",
+    recordMacroCommandId,
     () => { stateService.send('RECORD'); }
   );
 
+  let playCommandId = "nodename.vscode-hacker-typer-fork.playMacro";
   let play = vscode.commands.registerCommand(
-    "nodename.vscode-hacker-typer-fork.playMacro",
+    playCommandId,
     () => { stateService.send('PLAY'); }
   );
 
+  let deleteMacroCommandId = "nodename.vscode-hacker-typer-fork.deleteMacro";
   let delte = vscode.commands.registerCommand(
-    "nodename.vscode-hacker-typer-fork.deleteMacro",
+    deleteMacroCommandId,
     () => {
       const storage = Storage.getInstance(context);
       const items = storage.list();
@@ -86,13 +93,14 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
         }
 
         storage.delete(picked);
-        vscode.window.showInformationMessage(`Deleted "${picked}"`);
+        statusBar.show(`Deleted "${picked}"`);
       });
     }
   );
 
+  let exportMacroCommandId = "nodename.vscode-hacker-typer-fork.exportMacro";
   let exprt = vscode.commands.registerCommand(
-    "nodename.vscode-hacker-typer-fork.exportMacro",
+    exportMacroCommandId,
     () => {
       const storage = Storage.getInstance(context);
       const items = storage.list();
@@ -117,7 +125,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
               console.log(err);
               return;
             }
-            vscode.window.showInformationMessage(`Exported "${picked}"`);
+            statusBar.show(`Exported "${picked}"`);
           });
         });
 
@@ -125,8 +133,9 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
     }
   );
 
+  let importMacroCommandId = "nodename.vscode-hacker-typer-fork.importMacro";
   let imprt = vscode.commands.registerCommand(
-    "nodename.vscode-hacker-typer-fork.importMacro",
+    importMacroCommandId,
     () => {
       const storage = Storage.getInstance(context);
 
@@ -152,7 +161,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
               return;
             }
 
-            vscode.window.showInformationMessage(`Imported "${uri.fsPath}"`);
+            statusBar.show(`Imported "${uri.fsPath}"`);
           });
         }
       });

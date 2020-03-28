@@ -5,6 +5,7 @@ import Storage from "./storage";
 import { replaceAllContent } from "./edit";
 import { Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
+import * as statusBar from "./statusBar";
 
 let documentContent = "";
 
@@ -44,11 +45,11 @@ function undoLast(buffers: buffers.Buffer[]) {
 
 function saveRecording(bufferList: buffers.Buffer[], storage: Storage | null) {
   if (bufferList.length < 2) {
-    vscode.window.showInformationMessage("Cannot save macro with no content.");
+    statusBar.show("Cannot save macro with no content.");
     return;
   }
   if (!storage) {
-    vscode.window.showInformationMessage("ERROR: cannot save macro!");
+    statusBar.show("ERROR: cannot save macro!");
     return;
   }
   vscode.window.showInputBox({
@@ -63,7 +64,7 @@ function saveRecording(bufferList: buffers.Buffer[], storage: Storage | null) {
           buffers: bufferList
         })
           .then(macro => {
-            vscode.window.showInformationMessage(
+            statusBar.show(
               `Saved ${macro.buffers.length} buffers under "${macro.name}".`
             );
             continueOrEndRecording(bufferList);
@@ -87,12 +88,12 @@ function continueOrEndRecording(bufferList: buffers.Buffer[]) {
           case END:
             bufferList.length = 0;
             stateService.send('DONE_RECORDING');
-            vscode.window.showInformationMessage("Recording ended");
+            statusBar.show("Recording ended");
             break;
           default: // User hit Escape
             bufferList.length = 0;
             stateService.send('DONE_RECORDING');
-            vscode.window.showInformationMessage("Recording ended");
+            statusBar.show("Recording ended");
             break;
         }
       }
@@ -136,7 +137,7 @@ function registerRecordingCommands() {
     () => {
       bufferList.length = 0;
       stateService.send('DONE_RECORDING');
-      vscode.window.showInformationMessage("Recording cancelled");
+      statusBar.show("Recording cancelled");
     }
   );
 
@@ -285,7 +286,7 @@ function startRecording(currentOpenEditor: vscode.TextEditor) {
   // start watching the currently open doc
   // TODO if not new recording, check if doc has changed
   currentActiveDoc = currentOpenEditor.document;
-  vscode.window.showInformationMessage("Hacker Typer is now recording!");
+  statusBar.show("Hacker Typer is now recording!");
 }
 
 function startNewRecording(bufferList: buffers.Buffer[]) {

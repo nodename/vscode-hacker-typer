@@ -6,6 +6,7 @@ import * as Queue from "promise-queue";
 import { applyContentChanges, replaceAllContent } from "./edit";
 import { Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
+import * as statusBar from "./statusBar";
 
 let stateService: Interpreter<TyperContext>;
 
@@ -66,7 +67,7 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
       setStartingPoint(currentBuffer, textEditor);
     }
 
-    vscode.window.showInformationMessage(
+    statusBar.show(
       `Now playing ${currentBufferList.length} buffers from ${macro.name}!`
     );
   });
@@ -78,7 +79,7 @@ async function setStartingPoint(
   let editor = textEditor;
   // if no open text editor, open one
   if (!editor) {
-    vscode.window.showInformationMessage("opening new window");
+    statusBar.show("opening new window");
     const document = await vscode.workspace.openTextDocument({
       language: startingPoint.language,
       content: startingPoint.content
@@ -133,7 +134,6 @@ function onType({ text }: { text: string }) {
     } else {
       // have tried to replay beyond the terminating stopPointBreakChar:
       sound.playSound();
-      vscode.window.showErrorMessage("Hit ENTER to exit playback");
     }
   } else {
     queueText(text);
@@ -194,7 +194,7 @@ function advanceBuffer(done: () => void, userInput: string) {
 
     // Ran out of buffers? Disable type capture.
     if (!currentBuffer) {
-      vscode.window.showInformationMessage("Done!");
+      statusBar.show("Done!");
       reachedEndOfBuffers = true;
     }
 

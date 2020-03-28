@@ -23,6 +23,11 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 
 ## How to use Hacker Typer
 
+### Status Bar
+
+  It's recommended that you keep the status bar visible so you can see the current state of the extension
+(`View -> Appearance -> Show Status Bar`).
+
 ### Record a macro
 
 1. Open a file or a new VSCode window.
@@ -45,7 +50,7 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 6. WHOA HOW ARE YOU TYPING SO FAST
 7. `Cmd+Shift+Backspace` (the `Erase Previous Frame` command) will move the buffer backwards. Any other key moves it forward.
 8. Feel free to move around the file, highlight code etc. When you continue typing, the next character will be inserted where you did while recording.
-9. A sound is played when you reach the end of your macro.
+9. A sound is played when you reach the end of your macro. You must press `ENTER` to exit playback. 
 
 ### Stop points
 

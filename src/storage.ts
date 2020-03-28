@@ -4,6 +4,7 @@ import * as bf from "./buffers";
 import { SerializedBuffer, rehydrateBuffer } from "./rehydrate";
 import * as fs from 'fs';
 import * as path from 'path';
+import * as statusBar from "./statusBar";
 
 const LISTINGS = "HackerTyper:Listings";
 const MACROS = "HackerTyper:Macros";
@@ -119,7 +120,7 @@ export default class Storage {
   public userChooseMacro(callback: (macro: Macro) => void) {
     const items = this.list();
     if (items.length === 0) {
-      vscode.window.showInformationMessage(`No macros found`);
+      statusBar.show(`No macros found`);
       return;
     }
     vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
