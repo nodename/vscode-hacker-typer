@@ -87,6 +87,10 @@
       {
         "command": "nodename.vscode-hacker-typer-fork.undo",
         "key": "cmd+shift+t u"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.cancelPlaying",
+        "key": "cmd+shift+t x"
       }
     ],
     "commands": [
@@ -138,6 +142,11 @@
       {
         "command": "nodename.vscode-hacker-typer-fork.backspace",
         "title": "Erase Previous Frame",
+        "category": "HackerTyper"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.cancelPlaying",
+        "title": "Cancel Playing",
         "category": "HackerTyper"
       }
     ]

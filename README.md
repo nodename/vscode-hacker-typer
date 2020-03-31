@@ -90,6 +90,7 @@ NOTE! The only way to exit the recording state is by canceling or saving.
 | Command | Key Binding |
 |-----------|:-----------:|
 | `HackerTyper: Erase Previous Frame` |  Cmd+Shift+Backspace |
+| `HackerTyper: Cancel Playing` |  Cmd+Shift+T X |
 
 ## Current limitations
 

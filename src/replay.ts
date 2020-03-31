@@ -22,6 +22,7 @@ let currentBufferPosition: number | undefined = 0;
 
 let typeCommand: vscode.Disposable;
 let backspaceCommand: vscode.Disposable;
+let cancelPlayingCommand: vscode.Disposable;
 
 function advance() {
   if (currentBufferPosition !== undefined) {
@@ -43,11 +44,17 @@ export function registerPlayingCommands() {
   typeCommand = vscode.commands.registerCommand("type", onType);
   backspaceCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.backspace", onBackspace);
+  cancelPlayingCommand = vscode.commands.registerCommand(
+    "nodename.vscode-hacker-typer-fork.cancelPlaying", () => {
+      statusBar.show("Cancelled playing");
+      stateService.send('DONE_PLAYING');
+    });
 }
 
 function disposePlayingCommands() {
   typeCommand.dispose();
   backspaceCommand.dispose();
+  cancelPlayingCommand.dispose();
 }
 
 export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext>) {
