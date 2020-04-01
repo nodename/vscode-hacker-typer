@@ -173,6 +173,7 @@
     "node-wav-player": "^0.1.0",
     "promise-queue": "^2.2.5",
     "token-types": "1.0.2",
-    "vscode-cache": "^0.3.0"
+    "vscode-cache": "^0.3.0",
+    "on-change": "^2.0.1"
   }
 }

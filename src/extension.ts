@@ -48,12 +48,29 @@ export function activate(aContext: vscode.ExtensionContext) {
     // the events they send to it.
   });
   stateService.onTransition(state => {
-    console.log(`Transition to ${state.value} state`);
+    function valueName(state: any) {
+      if (state.value instanceof Object) {
+        // This works for non-parallel machine with one-level deep submachine
+        console.log(`value: ${JSON.stringify(state.value)}`);
+        let key = Object.keys(state.value)[0];
+        console.log(`${key}, ${state.value[key]}`);
+        return state.value[key];
+      } else {
+        return state.value;
+      }
+    }
+
+    const stateName = valueName(state);
+    console.log(`Transition to ${stateName} state:
+    ${JSON.stringify(state)}
+    `);
+    statusBar.setAppState(stateName);
     state.actions.forEach(action => {
       actionImplementations[action.type](context);
     });
   });
   stateService.start();
+  statusBar.setAppState("Idle");
 }
 
 function startRecording(context: vscode.ExtensionContext) {
@@ -174,4 +191,6 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
 }
 
 // this method is called when your extension is deactivated
-export function deactivate() { }
+export function deactivate() {
+  statusBar.dispose();
+}
