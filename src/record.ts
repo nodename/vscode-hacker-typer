@@ -69,9 +69,7 @@ function saveRecording(bufferList: buffers.Buffer[], storage: Storage | null) {
           buffers: bufferList
         })
           .then(macro => {
-            statusBar.show(
-              `Saved ${macro.buffers.length} buffers under "${macro.name}".`
-            );
+            statusBar.show(`Saved "${macro.name}"`);
             continueOrEndRecording(bufferList);
           });
       } else { // User hit Escape, name is undefined
@@ -294,7 +292,7 @@ function startRecording(currentOpenEditor: vscode.TextEditor) {
   // start watching the currently open doc
   // TODO if not new recording, check if doc has changed
   currentActiveDoc = currentOpenEditor.document;
-  statusBar.show("Hacker Typer is now recording!");
+  statusBar.show("");
 }
 
 function startNewRecording(bufferList: buffers.Buffer[]) {

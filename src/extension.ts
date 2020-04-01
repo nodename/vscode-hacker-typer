@@ -33,9 +33,7 @@ const actionImplementations: FnDict = {
 export function activate(aContext: vscode.ExtensionContext) {
   // Use the console to output diagnostic information (console.log) and errors (console.error)
   // This line of code will only be executed once when your extension is activated
-  console.log(
-    'Congratulations, your extension "vscode-hacker-typer-fork" is now active!'
-  );
+  console.log('Extension "vscode-hacker-typer-fork" active');
 
   statusBar.init();
   

@@ -17,9 +17,12 @@ const replayQueueMaxSize = Number.MAX_SAFE_INTEGER;
 const replayQueue = new Queue(replayConcurrency, replayQueueMaxSize);
 
 let reachedEndOfBuffers = false;
-let currentBuffer: buffers.Buffer | undefined;
 let currentBufferList: buffers.Buffer[] = [];
-let currentBufferPosition: number | undefined = 0;
+let currentBufferPosition: number = 0;
+
+function getCurrentBuffer(): buffers.Buffer {
+  return currentBufferList[currentBufferPosition];
+}
 
 let typeCommand: vscode.Disposable;
 let backspaceCommand: vscode.Disposable;
@@ -28,7 +31,6 @@ let cancelPlayingCommand: vscode.Disposable;
 function advance() {
   if (currentBufferPosition !== undefined) {
     currentBufferPosition++;
-    currentBuffer = currentBufferList[currentBufferPosition];
   }
 }
 
@@ -37,7 +39,6 @@ function retreat() {
   if (currentBufferPosition && currentBufferPosition > 0) {
     reachedEndOfBuffers = false;
     currentBufferPosition--;
-    currentBuffer = currentBufferList[currentBufferPosition];
   }
 }
 
@@ -63,21 +64,18 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
   const storage = Storage.getInstance(context);
   storage.userChooseMacro((macro) => {
     currentBufferList = macro.buffers;
-    currentBuffer = currentBufferList[0];
     currentBufferPosition = 0;
-    if (!currentBuffer) {
+    if (!getCurrentBuffer()) {
       showError("No active recording");
       return;
     }
 
     const textEditor = vscode.window.activeTextEditor;
-    if (buffers.isStartingPoint(currentBuffer)) {
-      setStartingPoint(currentBuffer, textEditor);
+    if (buffers.isStartingPoint(getCurrentBuffer())) {
+      setStartingPoint(<buffers.StartingPoint>getCurrentBuffer(), textEditor);
     }
 
-    statusBar.show(
-      `Now playing ${currentBufferList.length} buffers from ${macro.name}!`
-    );
+    statusBar.show(`${macro.name}`);
   });
 }
 
@@ -87,7 +85,7 @@ async function setStartingPoint(
   let editor = textEditor;
   // if no open text editor, open one
   if (!editor) {
-    statusBar.show("opening new window");
+    statusBar.show("Opening new window");
     const document = await vscode.workspace.openTextDocument({
       language: startingPoint.language,
       content: startingPoint.content
@@ -116,7 +114,6 @@ async function setStartingPoint(
 
 export function disable() {
   disposePlayingCommands();
-  currentBuffer = undefined;
   reachedEndOfBuffers = false;
 }
 
@@ -177,12 +174,12 @@ function advanceBuffer(done: () => void, userInput: string) {
     return;
   }
 
-  if (!currentBuffer) {
+  if (!getCurrentBuffer()) {
     showError("No buffer to advance");
     return;
   }
 
-  if (buffers.isStopPoint(currentBuffer)) {
+  if (buffers.isStopPoint(getCurrentBuffer())) {
     if (userInput === stopPointBreakChar) {
       advance();
     }
@@ -190,7 +187,7 @@ function advanceBuffer(done: () => void, userInput: string) {
     return done();
   }
 
-  const { changeInfo, selections } = <buffers.Frame>currentBuffer;
+  const { changeInfo, selections } = <buffers.Frame>getCurrentBuffer();
   const { changes } = changeInfo;
 
   const updateSelectionAndAdvanceToNextBuffer = () => {
@@ -201,8 +198,8 @@ function advanceBuffer(done: () => void, userInput: string) {
     advance();
 
     // Ran out of buffers? Disable type capture.
-    if (!currentBuffer) {
-      statusBar.show("Done!");
+    if (!getCurrentBuffer()) {
+      statusBar.show("Finished playing");
       reachedEndOfBuffers = true;
     }
 

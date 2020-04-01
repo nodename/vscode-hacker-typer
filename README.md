@@ -62,7 +62,7 @@ NB: A stop point is _AUTOMATICALLY_ added at the end of your recording.
 
 ## Command summary
 
-### Top-level commands
+### Commands available in the IDLE state
 
 | Command | Key Binding |
 |-----------|:-----------:|
@@ -74,7 +74,7 @@ NB: A stop point is _AUTOMATICALLY_ added at the end of your recording.
 
 Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator). 
 
-### Recording commands
+### Commands available in the RECORDING state
 
 | Command | Key Binding |
 |-----------|:-----------:|
@@ -85,7 +85,7 @@ Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator)
 
 NOTE! The only way to exit the recording state is by canceling or saving.
 
-### Replay commands
+### Commands available in the PLAYBACK state
 
 | Command | Key Binding |
 |-----------|:-----------:|

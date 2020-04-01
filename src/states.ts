@@ -9,10 +9,10 @@ const typerStates = {
         start: {
             entry: 'registerTopLevelCommands',
             on: {
-                '': 'waiting' // the null event '' always occurs once state is entered; causes immediate transition
+                '': 'idle' // the null event '' always occurs once the state is entered; causes immediate transition
             }
         },
-        waiting: {
+        idle: {
             on: {
                 RECORD: 'recording',
                 PLAY: 'playing'
@@ -22,14 +22,14 @@ const typerStates = {
             entry: ['enableRecording', 'startRecording'],
             exit: 'disableRecording',
             on: {
-                DONE_RECORDING: 'waiting'
+                DONE_RECORDING: 'idle'
             }
         },
         playing: {
             entry: ['enablePlaying', 'startPlaying'],
             exit: 'disablePlaying',
             on: {
-                DONE_PLAYING: 'waiting'
+                DONE_PLAYING: 'idle'
             }
         }
     }
