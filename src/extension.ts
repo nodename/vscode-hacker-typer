@@ -8,6 +8,7 @@ import { interpret, Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
 import { typerMachine } from "./states";
 import * as statusBar from "./statusBar";
+import showError from "./showError";
 
 let context: vscode.ExtensionContext;
 
@@ -121,7 +122,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
 
           storage.exprt(picked, location, (err) => {
             if (err) {
-              vscode.window.showErrorMessage(`Error exporting ${picked}`);
+              showError(`Error exporting ${picked}`);
               console.log(err);
               return;
             }
@@ -156,7 +157,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
           const uri = vscode.Uri.parse(file);
           storage.imprt(uri, (err) => {
             if (err) {
-              vscode.window.showErrorMessage(`Error importing ${uri.fsPath}`);
+              showError(`Error importing ${uri.fsPath}`);
               console.log(err);
               return;
             }

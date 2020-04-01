@@ -6,6 +6,7 @@ import { replaceAllContent } from "./edit";
 import { Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
 import * as statusBar from "./statusBar";
+import showError from "./showError";
 
 let documentContent = "";
 
@@ -30,26 +31,30 @@ function insertStop(buffers: buffers.Buffer[], name: string | null) {
 
 function undoLast(buffers: buffers.Buffer[]) {
   const lastBuffer = <buffers.Frame>(buffers[buffers.length - 1]);
-  const undo = lastBuffer.changeInfo.undo;
+  console.log(`undoLast: lastBuffer = ${lastBuffer}`);
+  if (lastBuffer) {
+    const undo = lastBuffer.changeInfo.undo;
+    console.log(`undoLast: undo = ${undo}`);
 
-  if (undo) {
-    documentContent = Diff.applyPatch(documentContent, undo);
+    if (undo) {
+      documentContent = Diff.applyPatch(documentContent, undo);
 
-    const textEditor = vscode.window.activeTextEditor;
-    if (textEditor) {
-      replaceAllContent(textEditor, documentContent);
+      const textEditor = vscode.window.activeTextEditor;
+      if (textEditor) {
+        replaceAllContent(textEditor, documentContent);
+      }
+      buffers.pop();
     }
-    buffers.pop();
   }
 }
 
 function saveRecording(bufferList: buffers.Buffer[], storage: Storage | null) {
   if (bufferList.length < 2) {
-    statusBar.show("Cannot save macro with no content.");
+    showError("Cannot save macro with no content.");
     return;
   }
   if (!storage) {
-    statusBar.show("ERROR: cannot save macro!");
+    showError("Cannot save macro!");
     return;
   }
   vscode.window.showInputBox({
@@ -115,6 +120,7 @@ function registerRecordingCommands() {
     "nodename.vscode-hacker-typer-fork.insertStop",
     () => {
       insertStop(bufferList, null);
+      statusBar.show("Inserted STOP");
     }
   );
 
@@ -217,7 +223,7 @@ let currentOpenEditor: vscode.TextEditor | undefined;
 let currentChangeInfo: buffers.ChangeInfo;
 
 function registerRecordingEventHandlers() {
-  const onDidChangeTextDocumentHandler = vscode.workspace.onDidChangeTextDocument(
+  const onDidChangeTextDocument = vscode.workspace.onDidChangeTextDocument(
     (event: vscode.TextDocumentChangeEvent) => {
       if (event.document === currentActiveDoc) {
         const newContent = currentActiveDoc.getText();
@@ -237,7 +243,7 @@ function registerRecordingEventHandlers() {
       }
     });
 
-  const onDidChangeTextEditorSelectionHandler = vscode.window.onDidChangeTextEditorSelection(
+  const onDidChangeTextEditorSelection = vscode.window.onDidChangeTextEditorSelection(
     (event: vscode.TextEditorSelectionChangeEvent) => {
       // Only allow recording from one active editor at a time
       // Breaks when you leave but that's fine for now.
@@ -245,6 +251,8 @@ function registerRecordingEventHandlers() {
         // TODO ask if user wants to save current recording
         return;
       }
+
+      statusBar.show("Recording");
 
       const changeInfo = currentChangeInfo;
       currentChangeInfo = { changes: [], diff: "", undo: "" };
@@ -261,7 +269,7 @@ function registerRecordingEventHandlers() {
       bufferList.push({ changeInfo: changeInfo, selections: selections });
     });
 
-  const onDidCloseTextDocumentHandler = vscode.workspace.onDidCloseTextDocument(
+  const onDidCloseTextDocument = vscode.workspace.onDidCloseTextDocument(
     (closedDoc: vscode.TextDocument) => {
       if (closedDoc === currentActiveDoc) {
         console.log('Watched doc was closed');
@@ -270,15 +278,15 @@ function registerRecordingEventHandlers() {
       }
     });
 
-  const onDidChangeActiveTextEditorHandler = vscode.window.onDidChangeActiveTextEditor(
+  const onDidChangeActiveTextEditor = vscode.window.onDidChangeActiveTextEditor(
     (newEditor: vscode.TextEditor | undefined) => {
       // ask if user wants to save current recording and stop recording
     });
 
-  return [onDidChangeTextDocumentHandler,
-    onDidChangeTextEditorSelectionHandler,
-    onDidCloseTextDocumentHandler,
-    onDidChangeActiveTextEditorHandler];
+  return [onDidChangeTextDocument,
+    onDidChangeTextEditorSelection,
+    onDidCloseTextDocument,
+    onDidChangeActiveTextEditor];
 }
 
 

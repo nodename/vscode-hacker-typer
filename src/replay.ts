@@ -7,6 +7,7 @@ import { applyContentChanges, replaceAllContent } from "./edit";
 import { Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
 import * as statusBar from "./statusBar";
+import showError from "./showError";
 
 let stateService: Interpreter<TyperContext>;
 
@@ -65,7 +66,7 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
     currentBuffer = currentBufferList[0];
     currentBufferPosition = 0;
     if (!currentBuffer) {
-      vscode.window.showErrorMessage("No active recording");
+      showError("No active recording");
       return;
     }
 
@@ -172,12 +173,12 @@ function advanceBuffer(done: () => void, userInput: string) {
   const editor = vscode.window.activeTextEditor;
 
   if (!editor) {
-    vscode.window.showErrorMessage("No active editor");
+    showError("No active editor");
     return;
   }
 
   if (!currentBuffer) {
-    vscode.window.showErrorMessage("No buffer to advance");
+    showError("No buffer to advance");
     return;
   }
 
