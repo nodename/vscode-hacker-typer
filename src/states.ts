@@ -1,6 +1,31 @@
 import { Machine } from "xstate";
 import { TyperContext } from "./stateTypes";
 
+const playingStates = {
+    id: 'playing',
+    strict: true,
+    initial: 'start',
+    states: {
+        start: {
+            entry: ['enablePlaying', 'startPlaying'],
+            on: {
+                '': 'playing'
+            }
+        },
+        playing: {
+            on: {
+                PLAY_STOPPED: 'stopped'
+            }
+        },
+        stopped: {
+            on: {
+                RESUME_PLAY: 'playing'
+            }
+        }
+
+    }
+};
+
 const typerStates = {
     id: 'typer',
     strict: true,
@@ -26,11 +51,11 @@ const typerStates = {
             }
         },
         playing: {
-            entry: ['enablePlaying', 'startPlaying'],
             exit: 'disablePlaying',
             on: {
                 DONE_PLAYING: 'idle'
-            }
+            },
+            ...playingStates
         }
     }
 };

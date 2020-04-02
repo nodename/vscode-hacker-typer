@@ -50,9 +50,8 @@ function getError(result: AdvanceResult): AdvanceError | undefined {
   // if you check which variant you are accessing,
   // TypeScript will "narrow" the type to that variant
   // and allow you to access the value directly if it is available.
-  if (result.isErr()) {
-    const s = JSON.stringify(result);
-    const t = typeof result;
+  if (result.isErr()) { // This should narrow to Err type
+    // Narrowing is not working here, so:
     // @ts-ignore
     return Result.Err.unwrapErr(result);
   } else {
@@ -167,12 +166,16 @@ function onType({ text: userInput }: { text: string }) {
     );
   }
 
-  console.log(`onType: currentBufferPosition = ${currentBufferPosition},
-    currentBuffer = ${JSON.stringify(getCurrentBuffer())},
-    userInput = ${userInput}`);
 
+  const currentBuffer = getCurrentBuffer();
+  let change = "";
+  if (buffers.isFrame(currentBuffer)) {
+    change = currentBuffer.changeInfo.changes[0].text;
+    console.log(`change = ${change}`);
+  }
+  console.log(`onType: userInput = ${userInput}`);
 
-  if (buffers.isStopPoint(getCurrentBuffer())) {
+  if (buffers.isStopPoint(currentBuffer)) {
     if (reachedEndOfBuffers) {
       if (userInput === stopPointBreakoutChar) {
         stateService.send('DONE_PLAYING');
@@ -181,6 +184,8 @@ function onType({ text: userInput }: { text: string }) {
         sound.playSound();
       }
     } else {
+      console.log("Reached stop point");
+      stateService.send('PLAY_STOPPED');
       if (userInput === stopPointBreakoutChar) {
         console.log("got breakout char");
         queueText(userInput);
@@ -228,8 +233,19 @@ function advanceBuffer(done: () => void, userInput: string) {
     return;
   }
 
-  if (buffers.isStopPoint(getCurrentBuffer())) {
+
+  const currentBuffer = getCurrentBuffer();
+  let change = "";
+  if (buffers.isFrame(currentBuffer)) {
+    change = currentBuffer.changeInfo.changes[0].text;
+    console.log(`change = ${change}`);
+  }
+  console.log(`advanceBuffer: userInput = ${userInput}`);
+
+  if (buffers.isStopPoint(currentBuffer)) {
+    console.log("At stop point");
     if (userInput === stopPointBreakoutChar) {
+      stateService.send('RESUME_PLAY');
       const result = advance();
       const advanceError = getError(result);
       if (advanceError) {
@@ -252,10 +268,11 @@ function advanceBuffer(done: () => void, userInput: string) {
     const result = advance();
     const advanceError = getError(result);
     if (advanceError) {
-      showError(advanceError.reason);
+      // do not show the error; it's just a signal that we're done
       statusBar.show("Finished playing");
       // disable typing capture
       reachedEndOfBuffers = true;
+      stateService.send('DONE_PLAYING');
     }
 
     done();

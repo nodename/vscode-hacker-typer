@@ -38,6 +38,10 @@ export function isStopPoint(buffer: Buffer): buffer is StopPoint {
   );
 }
 
+export function isFrame(buffer: Buffer): buffer is Frame {
+  return !isStartingPoint(buffer) && !isStopPoint(buffer);
+}
+
 export function describeChange(changeInfo: ChangeInfo): string {
   const change = changeInfo.changes[0];
   return `replace text from ${change.range.start.line}, ${change.range.start.character} to ` +
