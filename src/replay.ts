@@ -8,17 +8,19 @@ import { Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
 import * as statusBar from "./statusBar";
 import showError from "./showError";
+import { Result } from "true-myth"; //In Node.js, the TypeScript-generated CommonJS package
+// cannot be imported as nested modules
 
 let stateService: Interpreter<TyperContext>;
 
-const stopPointBreakChar = `\n`; // ENTER
+const stopPointBreakoutChar = `\n`; // ENTER
 const replayConcurrency = 1;
 const replayQueueMaxSize = Number.MAX_SAFE_INTEGER;
 const replayQueue = new Queue(replayConcurrency, replayQueueMaxSize);
 
 let reachedEndOfBuffers = false;
 let currentBufferList: buffers.Buffer[] = [];
-let currentBufferPosition: number = 0;
+let currentBufferPosition: number;
 
 function getCurrentBuffer(): buffers.Buffer {
   return currentBufferList[currentBufferPosition];
@@ -28,9 +30,33 @@ let typeCommand: vscode.Disposable;
 let backspaceCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
 
-function advance() {
-  if (currentBufferPosition !== undefined) {
+type AdvanceError = { reason: string };
+type AdvanceResult = Result<string, AdvanceError>;
+
+function advance(): AdvanceResult {
+  const maxBufferPosition = currentBufferList.length - 1;
+  if (currentBufferPosition < maxBufferPosition) {
     currentBufferPosition++;
+    return Result.ok<string, AdvanceError>("");
+  } else {
+    return Result.err<string, AdvanceError>({ reason: 'at end of buffer list' });
+  }
+}
+
+// If the result is an Err, returns the unwrapped error object.
+// If the result is not an Err, returns undefined.
+function getError(result: AdvanceResult): AdvanceError | undefined {
+  // Using TypeScript's "type narrowing" capabilities:
+  // if you check which variant you are accessing,
+  // TypeScript will "narrow" the type to that variant
+  // and allow you to access the value directly if it is available.
+  if (result.isErr()) {
+    const s = JSON.stringify(result);
+    const t = typeof result;
+    // @ts-ignore
+    return Result.Err.unwrapErr(result);
+  } else {
+    return undefined;
   }
 }
 
@@ -47,10 +73,12 @@ export function registerPlayingCommands() {
   backspaceCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.backspace", onBackspace);
   cancelPlayingCommand = vscode.commands.registerCommand(
-    "nodename.vscode-hacker-typer-fork.cancelPlaying", () => {
-      statusBar.show("Cancelled playing");
-      stateService.send('DONE_PLAYING');
-    });
+    "nodename.vscode-hacker-typer-fork.cancelPlaying", cancelPlaying);
+}
+
+function cancelPlaying() {
+  statusBar.show("Cancelled playing");
+  stateService.send('DONE_PLAYING');
 }
 
 function disposePlayingCommands() {
@@ -109,7 +137,12 @@ async function setStartingPoint(
   }
 
   // move to next frame
-  advance();
+  const result = advance();
+  const advanceError = getError(result);
+  if (advanceError) {
+    showError(advanceError.reason);
+    cancelPlaying();
+  }
 }
 
 export function disable() {
@@ -117,13 +150,15 @@ export function disable() {
   reachedEndOfBuffers = false;
 }
 
-function onType({ text }: { text: string }) {
-  function queueText(text: string) {
+//callback: (...args: any[]) => any
+function onType({ text: userInput }: { text: string }) {
+
+  function queueText(userInput: string) {
     replayQueue.add(
       () =>
         new Promise((resolve, reject) => {
           try {
-            advanceBuffer(resolve, text);
+            advanceBuffer(resolve, userInput);
           } catch (e) {
             console.log(e);
             reject(e);
@@ -132,16 +167,30 @@ function onType({ text }: { text: string }) {
     );
   }
 
-  console.log("onType");
-  if (reachedEndOfBuffers) {
-    if (text === stopPointBreakChar) {
-      stateService.send('DONE_PLAYING');
+  console.log(`onType: currentBufferPosition = ${currentBufferPosition},
+    currentBuffer = ${JSON.stringify(getCurrentBuffer())},
+    userInput = ${userInput}`);
+
+
+  if (buffers.isStopPoint(getCurrentBuffer())) {
+    if (reachedEndOfBuffers) {
+      if (userInput === stopPointBreakoutChar) {
+        stateService.send('DONE_PLAYING');
+      } else {
+        // have tried to play beyond the terminating stop point:
+        sound.playSound();
+      }
     } else {
-      // have tried to replay beyond the terminating stopPointBreakChar:
-      sound.playSound();
+      if (userInput === stopPointBreakoutChar) {
+        console.log("got breakout char");
+        queueText(userInput);
+      } else {
+        // play sound?
+        console.log("did not get breakout char");
+      }
     }
   } else {
-    queueText(text);
+    queueText(userInput);
   }
 }
 
@@ -180,8 +229,13 @@ function advanceBuffer(done: () => void, userInput: string) {
   }
 
   if (buffers.isStopPoint(getCurrentBuffer())) {
-    if (userInput === stopPointBreakChar) {
-      advance();
+    if (userInput === stopPointBreakoutChar) {
+      const result = advance();
+      const advanceError = getError(result);
+      if (advanceError) {
+        showError(advanceError.reason);
+        reachedEndOfBuffers = true;
+      }
     }
 
     return done();
@@ -195,11 +249,12 @@ function advanceBuffer(done: () => void, userInput: string) {
       updateSelections(selections, editor);
     }
 
-    advance();
-
-    // Ran out of buffers? Disable type capture.
-    if (!getCurrentBuffer()) {
+    const result = advance();
+    const advanceError = getError(result);
+    if (advanceError) {
+      showError(advanceError.reason);
       statusBar.show("Finished playing");
+      // disable typing capture
       reachedEndOfBuffers = true;
     }
 
