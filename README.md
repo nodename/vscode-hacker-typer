@@ -31,7 +31,7 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 ### Record a macro
 
 1. Open a file or a new VSCode window.
-2. Execute `HackerTyper: Record Macro` command (`Cmd+Shift+T R`) from the command palette.
+2. Execute `HackerTyper: Record Macro` command from the command palette (or `Cmd+Shift+T R`).
 3. The current content and selections of the active editor will be snapshotted.
 4. Start typing code. Every keystroke is recorded into an in-memory buffer, including deletions, selection changes, etc.
 5. If you make a mistake you can back up by typing `Cmd+Shift+T U` (the `Undo Last Recorded Buffer` command).
@@ -40,12 +40,12 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 8. Give your macro a name.
 9. You're done! Or if you wish, you can continue recording the macro.
 
-### Replay a macro
+### Play a macro
 
 1. Open a file or a new VSCode window.
-2. Execute `HackerTyper: Play Macro` command (`Cmd+Shift+T P`) from the command palette.
-3. Pick your previously saved macro.
-4. The active workspace will be reset to the initial starting point from the beginning of the recording. If there is no active text editor, a new anonymous unsaved file will be opened.
+2. Execute `HackerTyper: Play Macro` command from the command palette (or `Cmd+Shift+T P`).
+3. Choose your previously saved macro.
+4. The active workspace will be reset to the contents of the macro's starting point. If there is no active text editor, a new anonymous unsaved file will be opened.
 5. Start hammering your keyboard like a mad-person.
 6. WHOA HOW ARE YOU TYPING SO FAST
 7. `Cmd+Shift+Backspace` (the `Erase Previous Frame` command) will move the buffer backwards. Any other key moves it forward.
@@ -54,7 +54,7 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 
 ### Stop points
 
-While in recording mode, execute the `HackerTyper: Insert Stop Point` command (`Cmd+Shift+T I`) from the command palette.
+While in recording mode, execute the `HackerTyper: Insert Stop Point` command from the command palette (or `Cmd+Shift+T I`).
 
 When you hit a stop point while in replay mode, you need to press `ENTER` to break out of the stop point. All other keystrokes are ignored until you break out.
 
@@ -84,6 +84,7 @@ Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator)
 | `HackerTyper: Cancel Recording` | Cmd+Shift+T C |
 
 NOTE! The only way to exit the recording state is by canceling or saving.
+(Save Macro does have an escape so you can choose not to save the macro.)
 
 ### Commands available in the PLAYBACK state
 

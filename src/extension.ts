@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import Storage from "./storage";
 import * as recording from "./record";
-import * as replay from "./replay";
+import * as replay from "./play";
 import { interpret, Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
 import { typerMachine } from "./states";

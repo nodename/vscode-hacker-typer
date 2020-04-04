@@ -14,9 +14,9 @@ import { Result } from "true-myth"; //In Node.js, the TypeScript-generated Commo
 let stateService: Interpreter<TyperContext>;
 
 const stopPointBreakoutChar = `\n`; // ENTER
-const replayConcurrency = 1;
-const replayQueueMaxSize = Number.MAX_SAFE_INTEGER;
-const replayQueue = new Queue(replayConcurrency, replayQueueMaxSize);
+const playConcurrency = 1;
+const playQueueMaxSize = Number.MAX_SAFE_INTEGER;
+const playQueue = new Queue(playConcurrency, playQueueMaxSize);
 
 let reachedEndOfBuffers = false;
 let currentBufferList: buffers.Buffer[] = [];
@@ -30,24 +30,23 @@ let typeCommand: vscode.Disposable;
 let backspaceCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
 
-type AdvanceError = { reason: string };
-type AdvanceResult = Result<string, AdvanceError>;
+type ReasonError = { reason: string };
+type ReasonResult = Result<string, ReasonError>;
 
-function advance(): AdvanceResult {
+function advance(): ReasonResult {
   const maxBufferPosition = currentBufferList.length - 1;
   if (currentBufferPosition < maxBufferPosition) {
     currentBufferPosition++;
-    return Result.ok<string, AdvanceError>("");
+    return Result.ok<string, ReasonError>("");
   } else {
-    return Result.err<string, AdvanceError>({ reason: 'at end of buffer list' });
+    return Result.err<string, ReasonError>({ reason: 'at end of buffer list' });
   }
 }
 
 // If the result is an Err, returns the unwrapped error object.
 // If the result is not an Err, returns undefined.
-function getError(result: AdvanceResult): AdvanceError | undefined {
-  // Using TypeScript's "type narrowing" capabilities:
-  // if you check which variant you are accessing,
+function getReasonError(result: ReasonResult): ReasonError | undefined {
+  // If you check which variant you are accessing,
   // TypeScript will "narrow" the type to that variant
   // and allow you to access the value directly if it is available.
   if (result.isErr()) { // This should narrow to Err type
@@ -59,11 +58,14 @@ function getError(result: AdvanceResult): AdvanceError | undefined {
   }
 }
 
-function retreat() {
-  // move buffer one step backwards
+function retreat(): ReasonResult {
+  // move to previous buffer
   if (currentBufferPosition && currentBufferPosition > 0) {
     reachedEndOfBuffers = false;
     currentBufferPosition--;
+    return Result.ok<string, ReasonError>("");
+  } else {
+    return Result.err<string, ReasonError>({ reason: 'at beginning of buffer list' });
   }
 }
 
@@ -137,7 +139,7 @@ async function setStartingPoint(
 
   // move to next frame
   const result = advance();
-  const advanceError = getError(result);
+  const advanceError = getReasonError(result);
   if (advanceError) {
     showError(advanceError.reason);
     cancelPlaying();
@@ -152,57 +154,62 @@ export function disable() {
 //callback: (...args: any[]) => any
 function onType({ text: userInput }: { text: string }) {
 
-  function queueText(userInput: string) {
-    replayQueue.add(
+  function enqueue(userInput: string) {
+    playQueue.add(
       () =>
         new Promise((resolve, reject) => {
-          try {
-            advanceBuffer(resolve, userInput);
-          } catch (e) {
-            console.log(e);
-            reject(e);
+          const result = advanceBuffer(userInput);
+          const err = getReasonError(result);
+          if (err) {
+            showError(err.reason);
+            reject(err);
+          } else {
+            resolve();
           }
         })
     );
   }
 
-
   const currentBuffer = getCurrentBuffer();
   let change = "";
   if (buffers.isFrame(currentBuffer)) {
     change = currentBuffer.changeInfo.changes[0].text;
-    console.log(`change = ${change}`);
+  } else {
+    change = "Not a Frame";
   }
-  console.log(`onType: userInput = ${userInput}`);
+  // console.log(`change = ${change}`);
+  // console.log(`onType: userInput = ${userInput}`);
 
-  if (buffers.isStopPoint(currentBuffer)) {
-    if (reachedEndOfBuffers) {
-      if (userInput === stopPointBreakoutChar) {
-        stateService.send('DONE_PLAYING');
-      } else {
-        // have tried to play beyond the terminating stop point:
-        sound.playSound();
-      }
+  const gotBreakoutChar = userInput === stopPointBreakoutChar;
+
+  if (reachedEndOfBuffers) {
+    // This is the implicit stop point at the end of the macro
+    if (gotBreakoutChar) {
+      statusBar.show("Done playing");
+      stateService.send('DONE_PLAYING');
     } else {
-      console.log("Reached stop point");
-      stateService.send('PLAY_STOPPED');
-      if (userInput === stopPointBreakoutChar) {
-        console.log("got breakout char");
-        queueText(userInput);
-      } else {
-        // play sound?
-        console.log("did not get breakout char");
-      }
+      // have tried to play beyond the terminating stop point:
+      sound.playSound();
+    }
+  } else if (buffers.isStopPoint(currentBuffer)) {
+    if (gotBreakoutChar) {
+      // console.log("At stop point");
+      // console.log("got breakout char");
+      stateService.send('RESUME_PLAY');
+      enqueue(userInput); // send it on to advanceBuffer()
+    } else {
+      stateService.send('PLAY_PAUSED'); // We can reach here more than once; that's OK
+      // play sound?
+      // console.log("did not get breakout char");
     }
   } else {
-    queueText(userInput);
+    enqueue(userInput); // send it on to advanceBuffer()
   }
 }
 
 function onBackspace() {
   retreat();
-
-  // actually execute backspace action
+  // actually execute backspace action:
   vscode.commands.executeCommand("deleteLeft");
 }
 
@@ -220,69 +227,62 @@ function updateSelections(
   );
 }
 
-function advanceBuffer(done: () => void, userInput: string) {
+function advanceBuffer(userInput: string): ReasonResult {
   const editor = vscode.window.activeTextEditor;
-
   if (!editor) {
-    showError("No active editor");
-    return;
+    return Result.err<string, ReasonError>({ reason: "No active editor" });
   }
-
-  if (!getCurrentBuffer()) {
-    showError("No buffer to advance");
-    return;
-  }
-
 
   const currentBuffer = getCurrentBuffer();
-  let change = "";
+  if (!currentBuffer) {
+    return Result.err<string, ReasonError>({ reason: "No buffer to advance" });
+  }
+
   if (buffers.isFrame(currentBuffer)) {
-    change = currentBuffer.changeInfo.changes[0].text;
-    console.log(`change = ${change}`);
-  }
-  console.log(`advanceBuffer: userInput = ${userInput}`);
-
-  if (buffers.isStopPoint(currentBuffer)) {
-    console.log("At stop point");
-    if (userInput === stopPointBreakoutChar) {
-      stateService.send('RESUME_PLAY');
-      const result = advance();
-      const advanceError = getError(result);
-      if (advanceError) {
-        showError(advanceError.reason);
-        reachedEndOfBuffers = true;
-      }
+    let result = Result.ok<string, ReasonError>("");
+    applyFrame(editor, currentBuffer)
+      .then(returnValue => result = returnValue);
+    const err = getReasonError(result);
+    if (err) {
+      showError(err.reason);
+      // we're gonna advance anyway
     }
-
-    return done();
+  } else {
+    // must be a stop point;
+    // onType() would not have forwarded it here
+    // if userInput was not the breakout char.
+    // make no update to the document
   }
 
-  const { changeInfo, selections } = <buffers.Frame>getCurrentBuffer();
+  const result = advance();
+  const advanceError = getReasonError(result);
+  if (advanceError) {
+    // do not show the error; it's just an indication that we're done!
+    // disable typing capture:
+    reachedEndOfBuffers = true;
+  }
+  return Result.ok<string, ReasonError>("");
+}
+
+async function applyFrame(
+  editor: vscode.TextEditor,
+  frame: buffers.Frame) {
+  const { changeInfo, selections } = frame;
   const { changes } = changeInfo;
 
-  const updateSelectionAndAdvanceToNextBuffer = () => {
+  try {
+    if (changes && changes.length > 0) {
+      const editSuccess = await editor.edit(editBuilder => applyContentChanges(changes, editBuilder));
+      if (editSuccess === false) {
+        return Result.err<string, ReasonError>({ reason: "Edit failed" });
+      }
+    }
     if (selections.length) {
       updateSelections(selections, editor);
     }
-
-    const result = advance();
-    const advanceError = getError(result);
-    if (advanceError) {
-      // do not show the error; it's just a signal that we're done
-      statusBar.show("Finished playing");
-      // disable typing capture
-      reachedEndOfBuffers = true;
-      stateService.send('DONE_PLAYING');
-    }
-
-    done();
-  };
-
-  if (changes && changes.length > 0) {
-    editor
-      .edit(edit => applyContentChanges(changes, edit))
-      .then(updateSelectionAndAdvanceToNextBuffer);
-  } else {
-    updateSelectionAndAdvanceToNextBuffer();
+  } catch (error) {
+    showError(error.message);
+    return Result.err<string, ReasonError>({ reason: error.message });
   }
+  return Result.ok<string, ReasonError>("");
 }

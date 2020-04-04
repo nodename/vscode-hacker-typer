@@ -2,23 +2,23 @@ import * as vscode from "vscode";
 
 export function applyContentChanges(
     changes: vscode.TextDocumentContentChangeEvent[],
-    edit: vscode.TextEditorEdit) {
-    changes.forEach(change => applyContentChange(change, edit));
+    editBuilder: vscode.TextEditorEdit) {
+    changes.forEach(change => applyContentChange(change, editBuilder));
 }
 
 function applyContentChange(
     change: vscode.TextDocumentContentChangeEvent,
-    edit: vscode.TextEditorEdit) {
+    editBuilder: vscode.TextEditorEdit) {
     console.log(`change: text: ${change.text}`);
     console.log(`start: ${change.range.start}`);
     console.log(`rangeLength: ${change.rangeLength}`);
 
     if (change.text === "") {
-        edit.delete(change.range);
+        editBuilder.delete(change.range);
     } else if (change.rangeLength === 0) {
-        edit.insert(change.range.start, change.text);
+        editBuilder.insert(change.range.start, change.text);
     } else {
-        edit.replace(change.range, change.text);
+        editBuilder.replace(change.range, change.text);
     }
 }
 

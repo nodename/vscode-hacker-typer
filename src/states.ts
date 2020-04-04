@@ -14,10 +14,10 @@ const playingStates = {
         },
         playing: {
             on: {
-                PLAY_STOPPED: 'stopped'
+                PLAY_PAUSED: 'paused'
             }
         },
-        stopped: {
+        paused: {
             on: {
                 RESUME_PLAY: 'playing'
             }
