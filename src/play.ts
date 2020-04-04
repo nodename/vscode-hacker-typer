@@ -171,16 +171,16 @@ function onType({ text: userInput }: { text: string }) {
   }
 
   const currentBuffer = getCurrentBuffer();
-  let change = "";
-  if (buffers.isFrame(currentBuffer)) {
-    change = currentBuffer.changeInfo.changes[0].text;
-  } else {
-    change = "Not a Frame";
-  }
+  const gotBreakoutChar = userInput === stopPointBreakoutChar;
+
+  // let change = "";
+  // if (buffers.isFrame(currentBuffer)) {
+  //   change = currentBuffer.changeInfo.changes[0].text;
+  // } else {
+  //   change = "Not a Frame";
+  // }
   // console.log(`change = ${change}`);
   // console.log(`onType: userInput = ${userInput}`);
-
-  const gotBreakoutChar = userInput === stopPointBreakoutChar;
 
   if (reachedEndOfBuffers) {
     // This is the implicit stop point at the end of the macro
@@ -215,8 +215,7 @@ function onBackspace() {
 
 function updateSelections(
   selections: vscode.Selection[],
-  editor: vscode.TextEditor
-) {
+  editor: vscode.TextEditor) {
   editor.selections = selections;
 
   // move scroll focus if needed
