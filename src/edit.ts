@@ -9,9 +9,9 @@ export function applyContentChanges(
 function applyContentChange(
     change: vscode.TextDocumentContentChangeEvent,
     editBuilder: vscode.TextEditorEdit) {
-    console.log(`change: text: ${change.text}`);
-    console.log(`start: ${change.range.start}`);
-    console.log(`rangeLength: ${change.rangeLength}`);
+    // console.log(`change: text: ${change.text}`);
+    // console.log(`start: ${change.range.start}`);
+    // console.log(`rangeLength: ${change.rangeLength}`);
 
     if (change.text === "") {
         editBuilder.delete(change.range);

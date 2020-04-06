@@ -5,7 +5,7 @@ const path = require("path");
 
 const state = { isPlaying: false };
 
-export async function playSound() {
+export function playStopSound(): any {
     let soundFileName = "beep-26.wav";
     let soundFilePath = path.join(
         __dirname,
@@ -14,6 +14,12 @@ export async function playSound() {
         soundFileName
     );
 
+    let result: any;
+    playSound(soundFilePath).then((value) => result = value);
+    return result;
+}
+
+async function playSound(soundFilePath: string) {
     let duration: number | undefined;
     await mm.parseFile(soundFilePath)
         .then(metadata => {

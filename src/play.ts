@@ -9,7 +9,7 @@ import { TyperContext } from "./stateTypes";
 import * as statusBar from "./statusBar";
 import showError from "./showError";
 import { Result } from "true-myth"; //In Node.js, the TypeScript-generated CommonJS package
-// cannot be imported as nested modules
+// cannot be imported as nested modules, so we cannot import "true-myth/result"
 
 let stateService: Interpreter<TyperContext>;
 
@@ -18,7 +18,6 @@ const playConcurrency = 1;
 const playQueueMaxSize = Number.MAX_SAFE_INTEGER;
 const playQueue = new Queue(playConcurrency, playQueueMaxSize);
 
-let reachedEndOfBuffers = false;
 let currentBufferList: buffers.Buffer[] = [];
 let currentBufferPosition: number;
 
@@ -30,22 +29,23 @@ let typeCommand: vscode.Disposable;
 let backspaceCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
 
-type ReasonError = { reason: string };
-type ReasonResult = Result<string, ReasonError>;
+type ReasonObject = { reason: string };
+type ReasonResult = Result<string, ReasonObject>;
 
 function advance(): ReasonResult {
+  console.log(`ADVANCE: ${currentBufferPosition}`);
   const maxBufferPosition = currentBufferList.length - 1;
   if (currentBufferPosition < maxBufferPosition) {
     currentBufferPosition++;
-    return Result.ok<string, ReasonError>("");
+    return Result.ok<string, ReasonObject>("");
   } else {
-    return Result.err<string, ReasonError>({ reason: 'at end of buffer list' });
+    return Result.err<string, ReasonObject>({ reason: 'at end of buffer list' });
   }
 }
 
 // If the result is an Err, returns the unwrapped error object.
 // If the result is not an Err, returns undefined.
-function getReasonError(result: ReasonResult): ReasonError | undefined {
+function getReasonError(result: ReasonResult): ReasonObject | undefined {
   // If you check which variant you are accessing,
   // TypeScript will "narrow" the type to that variant
   // and allow you to access the value directly if it is available.
@@ -61,20 +61,36 @@ function getReasonError(result: ReasonResult): ReasonError | undefined {
 function retreat(): ReasonResult {
   // move to previous buffer
   if (currentBufferPosition && currentBufferPosition > 0) {
-    reachedEndOfBuffers = false;
+    registerTypeCommand();
     currentBufferPosition--;
-    return Result.ok<string, ReasonError>("");
+    return Result.ok<string, ReasonObject>("");
   } else {
-    return Result.err<string, ReasonError>({ reason: 'at beginning of buffer list' });
+    return Result.err<string, ReasonObject>({ reason: 'at beginning of buffer list' });
   }
 }
 
 export function registerPlayingCommands() {
-  typeCommand = vscode.commands.registerCommand("type", onType);
+  registerTypeCommand();
   backspaceCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.backspace", onBackspace);
   cancelPlayingCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.cancelPlaying", cancelPlaying);
+}
+
+function registerTypeCommand() {
+  // "type" is a built-in command, so we don't configure a keyboard shortcut
+  // We install the onType handler:
+  if (typeCommand) {
+    typeCommand.dispose();
+  }
+  typeCommand = vscode.commands.registerCommand("type", onType);
+}
+
+function registerEndTypeCommand() {
+  if (typeCommand) {
+    typeCommand.dispose();
+  }
+  typeCommand = vscode.commands.registerCommand("type", onTypeAtEnd);
 }
 
 function cancelPlaying() {
@@ -148,11 +164,24 @@ async function setStartingPoint(
 
 export function disable() {
   disposePlayingCommands();
-  reachedEndOfBuffers = false;
+}
+
+function onTypeAtEnd({ text: userInput }: { text: string }) {
+  console.log("onTypeAtEnd");
+  // We have reached the implicit stop point at the end of the macro
+  const gotBreakoutChar = userInput === stopPointBreakoutChar;
+  if (gotBreakoutChar) {
+    statusBar.show("Done playing");
+    stateService.send('DONE_PLAYING');
+  } else {
+    // have tried to play beyond the terminating stop point:
+    //sound.playEndSound();
+  }
 }
 
 //callback: (...args: any[]) => any
 function onType({ text: userInput }: { text: string }) {
+  console.log("onType");
 
   function enqueue(userInput: string) {
     playQueue.add(
@@ -173,36 +202,17 @@ function onType({ text: userInput }: { text: string }) {
   const currentBuffer = getCurrentBuffer();
   const gotBreakoutChar = userInput === stopPointBreakoutChar;
 
-  // let change = "";
-  // if (buffers.isFrame(currentBuffer)) {
-  //   change = currentBuffer.changeInfo.changes[0].text;
-  // } else {
-  //   change = "Not a Frame";
-  // }
-  // console.log(`change = ${change}`);
-  // console.log(`onType: userInput = ${userInput}`);
-
-  if (reachedEndOfBuffers) {
-    // This is the implicit stop point at the end of the macro
+  if (buffers.isStopPoint(currentBuffer)) {
     if (gotBreakoutChar) {
-      statusBar.show("Done playing");
-      stateService.send('DONE_PLAYING');
-    } else {
-      // have tried to play beyond the terminating stop point:
-      sound.playSound();
-    }
-  } else if (buffers.isStopPoint(currentBuffer)) {
-    if (gotBreakoutChar) {
-      // console.log("At stop point");
-      // console.log("got breakout char");
       stateService.send('RESUME_PLAY');
       enqueue(userInput); // send it on to advanceBuffer()
     } else {
       stateService.send('PLAY_PAUSED'); // We can reach here more than once; that's OK
-      // play sound?
+      const result = sound.playStopSound();
+      console.log(`sound result: ${result}`);
       // console.log("did not get breakout char");
     }
-  } else {
+  } else { // not at a stop point
     enqueue(userInput); // send it on to advanceBuffer()
   }
 }
@@ -229,16 +239,16 @@ function updateSelections(
 function advanceBuffer(userInput: string): ReasonResult {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    return Result.err<string, ReasonError>({ reason: "No active editor" });
+    return Result.err<string, ReasonObject>({ reason: "No active editor" });
   }
 
   const currentBuffer = getCurrentBuffer();
   if (!currentBuffer) {
-    return Result.err<string, ReasonError>({ reason: "No buffer to advance" });
+    return Result.err<string, ReasonObject>({ reason: "No buffer to advance" });
   }
 
   if (buffers.isFrame(currentBuffer)) {
-    let result = Result.ok<string, ReasonError>("");
+    let result = Result.ok<string, ReasonObject>("");
     applyFrame(editor, currentBuffer)
       .then(returnValue => result = returnValue);
     const err = getReasonError(result);
@@ -257,10 +267,11 @@ function advanceBuffer(userInput: string): ReasonResult {
   const advanceError = getReasonError(result);
   if (advanceError) {
     // do not show the error; it's just an indication that we're done!
-    // disable typing capture:
-    reachedEndOfBuffers = true;
+    // Don't disable typing capture right away; we'll handle that in onType
+    // when the user tries to keep typing. Set 
+    registerEndTypeCommand();
   }
-  return Result.ok<string, ReasonError>("");
+  return Result.ok<string, ReasonObject>("");
 }
 
 async function applyFrame(
@@ -273,7 +284,7 @@ async function applyFrame(
     if (changes && changes.length > 0) {
       const editSuccess = await editor.edit(editBuilder => applyContentChanges(changes, editBuilder));
       if (editSuccess === false) {
-        return Result.err<string, ReasonError>({ reason: "Edit failed" });
+        return Result.err<string, ReasonObject>({ reason: "Edit failed" });
       }
     }
     if (selections.length) {
@@ -281,7 +292,7 @@ async function applyFrame(
     }
   } catch (error) {
     showError(error.message);
-    return Result.err<string, ReasonError>({ reason: error.message });
+    return Result.err<string, ReasonObject>({ reason: error.message });
   }
-  return Result.ok<string, ReasonError>("");
+  return Result.ok<string, ReasonObject>("");
 }
