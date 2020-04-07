@@ -1,7 +1,7 @@
 import { Machine } from "xstate";
 import { TyperContext } from "./stateTypes";
 
-const playingStates = {
+const playStates = {
     id: 'playing',
     strict: true,
     initial: 'start',
@@ -14,13 +14,18 @@ const playingStates = {
         },
         playing: {
             on: {
-                PLAY_PAUSED: 'paused'
+                PLAY_PAUSED: 'paused',
+                REACHED_END: 'atEnd'
             }
         },
         paused: {
+            entry: 'playStopSound',
             on: {
                 RESUME_PLAY: 'playing'
             }
+        },
+        atEnd: {
+            entry: 'playEndSound'
         }
 
     }
@@ -39,23 +44,23 @@ const typerStates = {
         },
         idle: {
             on: {
-                RECORD: 'recording',
-                PLAY: 'playing'
+                RECORD: 'record',
+                PLAY: 'play'
             }
         },
-        recording: {
+        record: {
             entry: ['enableRecording', 'startRecording'],
             exit: 'disableRecording',
             on: {
                 DONE_RECORDING: 'idle'
             }
         },
-        playing: {
+        play: {
             exit: 'disablePlaying',
             on: {
                 DONE_PLAYING: 'idle'
             },
-            ...playingStates
+            ...playStates
         }
     }
 };

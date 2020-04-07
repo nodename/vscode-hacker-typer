@@ -1,15 +1,17 @@
 import * as vscode from "vscode";
 
-export function applyContentChanges(
+export async function applyContentChanges(
     changes: vscode.TextDocumentContentChangeEvent[],
     editBuilder: vscode.TextEditorEdit) {
-    changes.forEach(change => applyContentChange(change, editBuilder));
+    for (const change of changes) {
+        await applyContentChange(change, editBuilder);
+    }
 }
 
-function applyContentChange(
+async function applyContentChange(
     change: vscode.TextDocumentContentChangeEvent,
     editBuilder: vscode.TextEditorEdit) {
-    // console.log(`change: text: ${change.text}`);
+    console.log(`change: text: ${change.text}`);
     // console.log(`start: ${change.range.start}`);
     // console.log(`rangeLength: ${change.rangeLength}`);
 

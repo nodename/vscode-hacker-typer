@@ -3,7 +3,8 @@
 import * as vscode from "vscode";
 import Storage from "./storage";
 import * as recording from "./record";
-import * as replay from "./play";
+import * as play from "./play";
+import * as sound from "./sound";
 import { interpret, Interpreter } from "xstate";
 import { TyperContext } from "./stateTypes";
 import { typerMachine } from "./states";
@@ -23,9 +24,11 @@ const actionImplementations: FnDict = {
   enableRecording: recording.registerRecordingHooks,
   startRecording: startRecording,
   disableRecording: recording.disposeRecordingHooks,
-  enablePlaying: replay.registerPlayingCommands,
+  enablePlaying: play.registerPlayingCommands,
   startPlaying: startPlaying,
-  disablePlaying: replay.disable
+  playStopSound: playStopSound,
+  playEndSound: playEndSound,
+  disablePlaying: play.disable
 };
 
 // this method is called when your extension is activated
@@ -49,19 +52,17 @@ export function activate(aContext: vscode.ExtensionContext) {
     function valueName(state: any) {
       if (state.value instanceof Object) {
         // This works for non-parallel machine with one-level deep submachine
-        console.log(`value: ${JSON.stringify(state.value)}`);
+        //console.log(`value: ${JSON.stringify(state.value)}`);
         let key = Object.keys(state.value)[0];
         console.log(`${key}, ${state.value[key]}`);
-        return state.value[key];
+        return `${key}: ${state.value[key]}`;
       } else {
         return state.value;
       }
     }
 
     const stateName = valueName(state);
-    console.log(`Transition to ${stateName} state:
-    ${JSON.stringify(state)}
-    `);
+    console.log(`Transition to ${stateName} state`);
     statusBar.setAppState(stateName);
     state.actions.forEach(action => {
       actionImplementations[action.type](context);
@@ -76,9 +77,16 @@ function startRecording(context: vscode.ExtensionContext) {
 }
 
 function startPlaying(context: vscode.ExtensionContext) {
-  replay.start(context, stateService);
+  play.start(context, stateService);
 }
 
+function playStopSound(context: vscode.ExtensionContext) {
+  sound.playStopSound();
+}
+
+function playEndSound(context: vscode.ExtensionContext) {
+  sound.playEndSound();
+}
 // These commands are available whenever the extension is active:
 function registerTopLevelCommands(context: vscode.ExtensionContext) {
   // The command has been defined in the package.json file
@@ -98,7 +106,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
   );
 
   let deleteMacroCommandId = "nodename.vscode-hacker-typer-fork.deleteMacro";
-  let delte = vscode.commands.registerCommand(
+  let deleet = vscode.commands.registerCommand(
     deleteMacroCommandId,
     () => {
       const storage = Storage.getInstance(context);
@@ -185,7 +193,7 @@ function registerTopLevelCommands(context: vscode.ExtensionContext) {
   );
 
   // These will automatically be disposed when the extension is deactivated:
-  context.subscriptions.push(record, play, delte, exprt, imprt);
+  context.subscriptions.push(record, play, deleet, exprt, imprt);
 }
 
 // this method is called when your extension is deactivated
