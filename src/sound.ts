@@ -1,3 +1,5 @@
+"use strict";
+
 import * as mm from 'music-metadata';
 
 const wavPlayer = require("node-wav-player");

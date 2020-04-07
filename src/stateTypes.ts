@@ -1,3 +1,5 @@
+"use strict";
+
 /*
 export interface TyperSchema {
     initial: 'start' | 'recording' | 'playing' | undefined,

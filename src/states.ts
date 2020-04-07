@@ -1,3 +1,5 @@
+"use strict";
+
 import { Machine } from "xstate";
 import { TyperContext } from "./stateTypes";
 
@@ -7,7 +9,7 @@ const playStates = {
     initial: 'start',
     states: {
         start: {
-            entry: ['enablePlaying', 'startPlaying'],
+            entry: ['disableIdling', 'enablePlaying', 'startPlaying'],
             on: {
                 '': 'playing'
             }
@@ -34,22 +36,17 @@ const playStates = {
 const typerStates = {
     id: 'typer',
     strict: true,
-    initial: 'start',
+    initial: 'idle',
     states: {
-        start: {
-            entry: 'registerTopLevelCommands',
-            on: {
-                '': 'idle' // the null event '' always occurs once the state is entered; causes immediate transition
-            }
-        },
         idle: {
+            entry: 'enableIdling',
             on: {
                 RECORD: 'record',
                 PLAY: 'play'
             }
         },
         record: {
-            entry: ['enableRecording', 'startRecording'],
+            entry: ['disableIdling', 'enableRecording', 'startRecording'],
             exit: 'disableRecording',
             on: {
                 DONE_RECORDING: 'idle'

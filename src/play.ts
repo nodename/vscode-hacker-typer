@@ -1,3 +1,5 @@
+"use strict";
+
 import * as vscode from "vscode";
 import { Buffer, StartingPoint, isStartingPoint, isFrame, isStopPoint } from "./buffers";
 import Storage from "./storage";
@@ -14,12 +16,6 @@ const stopPointBreakoutChar = `\n`; // ENTER
 const chanBuffer = 100;
 // User keystrokes provided by the onType command:
 let inputChannel: Channel;
-
-// Buffers from the macro, to be applied to the document in sequence:
-let playChannel: Channel;
-
-// "Events" indicating that an edit has completed:
-let editChannel: Channel;
 
 let typeCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
@@ -75,8 +71,12 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
     }
     
     inputChannel = chan(chanBuffer);
-    playChannel = operations.fromColl(macro.buffers);
-    editChannel = chan(1);
+
+    // Buffers from the macro, to be applied in sequence to the document:
+    const playChannel = operations.fromColl(macro.buffers);
+
+    // "Events" indicating that an edit has completed:
+    const editChannel = chan(1);
 
     go(function* () {
       let playBuffer: Buffer = yield playChannel;
@@ -90,8 +90,6 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
       let userInput = yield inputChannel;
 
       while (userInput !== CLOSED) {
-        console.log(`got ${userInput}`);
-
         if (isFrame(playBuffer)) {
           if (textEditor) {
             const frame = playBuffer;
@@ -104,7 +102,7 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
               if (selections.length) {
                 revealSelections(selections, <vscode.TextEditor>textEditor);
               }
-              putAsync(editChannel, "done");
+              putAsync(editChannel, "done"); // the value put doesn't matter, as long as it's there
             });
             yield editChannel; // wait until the edit is done!
             playBuffer = yield playChannel;

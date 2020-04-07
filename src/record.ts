@@ -1,3 +1,5 @@
+"use strict";
+
 import * as vscode from "vscode";
 import * as Diff from "diff";
 import * as buffers from "./buffers";

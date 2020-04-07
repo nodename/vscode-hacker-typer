@@ -1,3 +1,5 @@
+"use strict";
+
 import * as vscode from "vscode";
 
 export async function applyContentChanges(
@@ -11,7 +13,7 @@ export async function applyContentChanges(
 async function applyContentChange(
     change: vscode.TextDocumentContentChangeEvent,
     editBuilder: vscode.TextEditorEdit) {
-    console.log(`change: text: ${change.text}`);
+    // console.log(`change: text: ${change.text}`);
     // console.log(`start: ${change.range.start}`);
     // console.log(`rangeLength: ${change.rangeLength}`);
 

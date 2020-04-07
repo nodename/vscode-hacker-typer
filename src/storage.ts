@@ -1,3 +1,5 @@
+"use strict";
+
 import * as vscode from "vscode";
 import * as Cache from "vscode-cache";
 import * as bf from "./buffers";
