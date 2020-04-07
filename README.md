@@ -4,7 +4,7 @@ _Great for live coding presentations, impressing your friends, or just trying to
 
 ![Promotional video](docs/hackertyper-video.gif)
 
-Hacker Typer allows you to record yourself programming, and to replay the same keystrokes by wildly mashing any key. Supports typing, editing, selections (including multicursor) and autocompletions. Basically, it looks like you have programming superpowers.
+Hacker Typer allows you to record yourself programming, and to play the same keystrokes by wildly mashing any key. Supports typing, editing, selections (including multicursor) and autocompletions. Basically, it looks like you have programming superpowers.
 
 This version is a fork of [Jani Eväkallio's original extension](https://github.com/jevakallio/vscode-hacker-typer).
 
@@ -12,20 +12,16 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 
 ⬇️ **Download the extension from [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=nodename.vscode-hacker-typer-fork)**
 
-
-
-**🗯 "This is Unix, I know this! Asdfkdhsur dueuekdnfh sueekgkvins dicodksbry"** — [@mwarger](https://twitter.com/mwarger)
-
 ## Features
 
-- Record and replay **macros**.
-- Insert stop points, so you don't accidentally overrun your talking point while live coding.
+- Record and play **macros**.
+- Insert stop points, so you don't accidentally overrun your talking points while live coding.
 
 ## How to use Hacker Typer
 
 ### Status Bar
 
-  It's recommended that you keep the status bar visible so you can see the current state of the extension
+  If you keep the status bar visible you can see the current state of the extension
 (`View -> Appearance -> Show Status Bar`).
 
 ### Record a macro
@@ -48,17 +44,14 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 4. The active workspace will be reset to the contents of the macro's starting point. If there is no active text editor, a new anonymous unsaved file will be opened.
 5. Start hammering your keyboard like a mad-person.
 6. WHOA HOW ARE YOU TYPING SO FAST
-7. `Cmd+Shift+Backspace` (the `Erase Previous Frame` command) will move the buffer backwards. Any other key moves it forward.
-8. Feel free to move around the file, highlight code etc. When you continue typing, the next character will be inserted where you did while recording.
-9. A sound is played when you reach the end of your macro. You must press `ENTER` to exit playback. 
+7. Feel free to move around the file, highlight code etc. When you continue typing, the next character will be inserted where you did while recording.
+8. A low sound is played when you reach the end of your macro. You must press `ENTER` to exit playback. 
 
 ### Stop points
 
 While in recording mode, execute the `HackerTyper: Insert Stop Point` command from the command palette (or `Cmd+Shift+T I`).
 
-When you hit a stop point while in replay mode, you need to press `ENTER` to break out of the stop point. All other keystrokes are ignored until you break out.
-
-NB: A stop point is _AUTOMATICALLY_ added at the end of your recording.
+When you hit a stop point in play mode, a high sound is played. You must press `ENTER` to break out of the stop point and continue playing. All other keystrokes are ignored until you break out.
 
 ## Command summary
 
@@ -83,14 +76,12 @@ Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator)
 | `HackerTyper: Save Macro` | Cmd+Shift+T S |
 | `HackerTyper: Cancel Recording` | Cmd+Shift+T C |
 
-NOTE! The only way to exit the recording state is by canceling or saving.
-(Save Macro does have an escape so you can choose not to save the macro.)
+NOTE! The only ways to exit the recording state are `Cancel Recording` and `Save Macro`.
 
 ### Commands available in the PLAYBACK state
 
 | Command | Key Binding |
 |-----------|:-----------:|
-| `HackerTyper: Erase Previous Frame` |  Cmd+Shift+Backspace |
 | `HackerTyper: Cancel Playing` |  Cmd+Shift+T X |
 
 ## Current limitations

@@ -47,11 +47,6 @@
   "contributes": {
     "keybindings": [
       {
-        "command": "nodename.vscode-hacker-typer-fork.backspace",
-        "when": "editorTextFocus",
-        "key": "cmd+shift+backspace"
-      },
-      {
         "command": "nodename.vscode-hacker-typer-fork.recordMacro",
         "when": "editorTextFocus",
         "key": "cmd+shift+t r"
@@ -140,11 +135,6 @@
         "category": "HackerTyper"
       },
       {
-        "command": "nodename.vscode-hacker-typer-fork.backspace",
-        "title": "Erase Previous Frame",
-        "category": "HackerTyper"
-      },
-      {
         "command": "nodename.vscode-hacker-typer-fork.cancelPlaying",
         "title": "Cancel Playing",
         "category": "HackerTyper"
@@ -174,7 +164,7 @@
     "on-change": "^2.0.1",
     "promise-queue": "^2.2.5",
     "token-types": "1.0.2",
-    "true-myth": "^4.0.0",
-    "vscode-cache": "^0.3.0"
+    "vscode-cache": "^0.3.0",
+    "js-csp": "^1.0.1"
   }
 }
