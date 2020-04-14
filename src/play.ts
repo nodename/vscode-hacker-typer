@@ -4,24 +4,26 @@ import * as vscode from "vscode";
 import { Buffer, StartingPoint, isStartingPoint, isFrame, isStopPoint } from "./buffers";
 import Storage from "./storage";
 import { go, chan, putAsync, Channel, CLOSED, operations } from "js-csp";
-import { applyContentChanges, replaceAllContent } from "./edit";
+import { replaceAllContent, revealSelections, applyFrame } from "./edit";
 import { Interpreter } from "xstate";
-import { TyperContext } from "./stateTypes";
+import { TyperContext } from "./TyperContext";
 import * as statusBar from "./statusBar";
 
 let stateService: Interpreter<TyperContext>;
 
 const stopPointBreakoutChar = `\n`; // ENTER
 
-const chanBuffer = 100;
-// User keystrokes provided by the onType command:
+const inputBufferSize = 40;
 let inputChannel: Channel;
 
 let typeCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
+let toggleSilenceCommand: vscode.Disposable;
 
 export function registerPlayingCommands() {
   registerTypeCommand();
+  toggleSilenceCommand = vscode.commands.registerCommand(
+    "nodename.vscode-hacker-typer-fork.toggleSilence", toggleSilence);
   cancelPlayingCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.cancelPlaying", cancelPlaying);
 }
@@ -47,18 +49,19 @@ function registerEndTypeCommand() {
   typeCommand = vscode.commands.registerCommand("type", endType);
 }
 
+function toggleSilence() {
+  stateService.send('TOGGLE_SILENCE');
+}
+
 function cancelPlaying() {
   statusBar.show("Cancelled playing");
   stateService.send('DONE_PLAYING');
 }
 
-export function disable() {
-  disposePlayingCommands();
-}
-
-function disposePlayingCommands() {
+export function disposePlayingCommands() {
   typeCommand.dispose();
   cancelPlayingCommand.dispose();
+  toggleSilenceCommand.dispose();
 }
 
 export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext>) {
@@ -69,8 +72,13 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
     if (!textEditor) {
       // error
     }
-    
-    inputChannel = chan(chanBuffer);
+    if (!macro) {
+      cancelPlaying();
+      return;
+    }
+
+    // User keystrokes provided by the onType command:
+    inputChannel = chan(inputBufferSize);
 
     // Buffers from the macro, to be applied in sequence to the document:
     const playChannel = operations.fromColl(macro.buffers);
@@ -92,26 +100,14 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
       while (userInput !== CLOSED) {
         if (isFrame(playBuffer)) {
           if (textEditor) {
-            const frame = playBuffer;
-            const { changeInfo, selections } = frame;
-            const { changes } = changeInfo;
-
-            textEditor.edit(function (editBuilder: vscode.TextEditorEdit): void {
-              applyContentChanges(changes, editBuilder);
-            }).then(() => {
-              if (selections.length) {
-                revealSelections(selections, <vscode.TextEditor>textEditor);
-              }
-              putAsync(editChannel, "done"); // the value put doesn't matter, as long as it's there
-            });
+            applyFrame(playBuffer, textEditor, editChannel);
             yield editChannel; // wait until the edit is done!
             playBuffer = yield playChannel;
           } else {
             // textEditor is undefined
           }
         } else if (isStopPoint(playBuffer)) {
-          const gotBreakoutChar = userInput === stopPointBreakoutChar;
-          if (gotBreakoutChar) {
+          if (userInput === stopPointBreakoutChar) {
             stateService.send('RESUME_PLAY');
             playBuffer = yield playChannel;
           } else {
@@ -139,7 +135,6 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
 async function setStartingPoint(
   startingPoint: StartingPoint,
   textEditor: vscode.TextEditor | undefined) {
-  console.log("setStartingPoint");
   let editor = textEditor;
   // if no open text editor, open one
   if (!editor) {
@@ -150,7 +145,7 @@ async function setStartingPoint(
     });
 
     editor = await vscode.window.showTextDocument(document);
-  } 
+  }
   await replaceAllContent(editor, startingPoint.content);
 
   if (editor) {
@@ -176,15 +171,3 @@ function endType({ text: userInput }: { text: string }) {
   }
 }
 
-function revealSelections(
-  selections: vscode.Selection[],
-  editor: vscode.TextEditor) {
-  editor.selections = selections;
-
-  // move scroll focus if needed
-  const { start, end } = editor.selections[0];
-  editor.revealRange(
-    new vscode.Range(start, end),
-    vscode.TextEditorRevealType.InCenterIfOutsideViewport
-  );
-}

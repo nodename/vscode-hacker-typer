@@ -119,18 +119,19 @@ export default class Storage {
     });
   }
 
-  public userChooseMacro(callback: (macro: Macro) => void) {
+  public userChooseMacro(callback: (macro: Macro | undefined) => void) {
     const items = this.list();
     if (items.length === 0) {
       statusBar.show(`No macros found`);
       return;
     }
     vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
-      if (!picked) {
-        return;
+      if (!picked) { // User hit ESC
+        callback(undefined);
+      } else {
+        const macro = this.getByName(picked);
+        callback(macro);
       }
-      const macro = this.getByName(picked);
-      callback(macro);
     });
   }
 }

@@ -6,6 +6,7 @@ import showError from "./showError";
 import { stateService } from "./extension";
 import * as statusBar from "./statusBar";
 
+// These are the commands that are available in the Idle state:
 let record: vscode.Disposable;
 let play: vscode.Disposable;
 let deleet: vscode.Disposable;

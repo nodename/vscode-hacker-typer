@@ -1,86 +1,33 @@
 "use strict";
 
 import * as vscode from "vscode";
-import * as Diff from "diff";
-import * as buffers from "./buffers";
+import { go, chan, alts, put, putAsync, CLOSED } from "js-csp";
+import {
+  Buffer, describeSelections, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo
+} from "./buffers";
 import Storage from "./storage";
-import { replaceAllContent } from "./edit";
 import { Interpreter } from "xstate";
-import { TyperContext } from "./stateTypes";
+import { TyperContext } from "./TyperContext";
 import * as statusBar from "./statusBar";
 import showError from "./showError";
+import { applyFrame } from "./edit";
 
-let documentContent = "";
+// Messages from our documentChange handler:
+const documentChangeChannel = chan(1);
+// Messages from our selectionChangeHandler:
+const selectionChangeChannel = chan(1);
+const undoChannel = chan(1);
+// Buffers destined for bufferList:
+const outputChannel = chan(1);
 
-function insertStartingPoint(buffers: buffers.Buffer[], textEditor: vscode.TextEditor) {
-  documentContent = textEditor.document.getText();
-  const language = textEditor.document.languageId;
-  const selections = textEditor.selections;
-
-  console.log(`initial content: "${documentContent}"`);
-
-  buffers.push({ content: documentContent, language, selections });
-}
-
-function insertStop(buffers: buffers.Buffer[], name: string | null) {
-  buffers.push({
-    stop: {
-      name: name || null
-    },
+function insertStop(name: string | null) {
+  putAsync(outputChannel, {
+    stop: { name: name || null },
     selections: undefined
   });
 }
 
-function undoLast(buffers: buffers.Buffer[]) {
-  const lastBuffer = <buffers.Frame>(buffers[buffers.length - 1]);
-  console.log(`undoLast: lastBuffer = ${lastBuffer}`);
-  if (lastBuffer) {
-    const undo = lastBuffer.changeInfo.undo;
-    console.log(`undoLast: undo = ${undo}`);
-
-    if (undo) {
-      documentContent = Diff.applyPatch(documentContent, undo);
-
-      const textEditor = vscode.window.activeTextEditor;
-      if (textEditor) {
-        replaceAllContent(textEditor, documentContent);
-      }
-      buffers.pop();
-    }
-  }
-}
-
-function saveRecording(bufferList: buffers.Buffer[], storage: Storage | null) {
-  if (bufferList.length < 2) {
-    showError("Cannot save macro with no content.");
-    return;
-  }
-  if (!storage) {
-    showError("Cannot save macro!");
-    return;
-  }
-  vscode.window.showInputBox({
-    prompt: "Give this thing a name",
-    placeHolder: "cool-macro"
-  })
-    .then(name => {
-      if (name) {
-        return storage.save({
-          name,
-          description: "",
-          buffers: bufferList
-        })
-          .then(macro => {
-            statusBar.show(`Saved "${macro.name}"`);
-            continueOrEndRecording(bufferList);
-          });
-      } else { // User hit Escape, name is undefined
-        continueOrEndRecording(bufferList);
-      }
-    });
-}
-
-function continueOrEndRecording(bufferList: buffers.Buffer[]) {
+function continueOrEndRecording(buffers: Buffer[]) {
   const CONTINUE = "Continue current recording";
   const END = "Stop recording";
   vscode.window.showQuickPick([CONTINUE, END], { canPickMany: false })
@@ -88,38 +35,28 @@ function continueOrEndRecording(bufferList: buffers.Buffer[]) {
       selection => {
         switch (selection) {
           case CONTINUE:
-            resumeRecording(bufferList);
+            resumeRecording();
             break;
           case END:
-            bufferList.length = 0;
+            buffers.length = 0;
             stateService.send('DONE_RECORDING');
-            statusBar.show("Recording ended");
+            statusBar.show("Done recording");
             break;
           default: // User hit Escape
-            bufferList.length = 0;
+            buffers.length = 0;
             stateService.send('DONE_RECORDING');
-            statusBar.show("Recording ended");
+            statusBar.show("Done recording");
             break;
         }
       }
     );
 }
 
-export function disposeRecordingHooks() {
-  console.log("disposeRecordingHooks");
-  if (recordingHooks) {
-    recordingHooks.dispose();
-    recordingHooks = null;
-  }
-}
-
-let recordingHooks: vscode.Disposable | null = null;
-
 function registerRecordingCommands() {
   const insertStopCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.insertStop",
     () => {
-      insertStop(bufferList, null);
+      insertStop(null);
       statusBar.show("Inserted STOP");
     }
   );
@@ -127,14 +64,15 @@ function registerRecordingCommands() {
   const undoCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.undo",
     () => {
-      undoLast(bufferList);
+      putAsync(undoChannel, "UNDO");
     }
   );
 
   const saveMacroCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.saveMacro",
     () => {
-      saveRecording(bufferList, storage);
+      documentChangeChannel.close();
+      selectionChangeChannel.close();
     }
   );
 
@@ -160,22 +98,30 @@ export function registerRecordingHooks() {
   );
 }
 
+let recordingHooks: vscode.Disposable;
+export function disposeRecordingHooks(context: vscode.ExtensionContext) {
+  console.log("disposeRecordingHooks");
+  if (recordingHooks) {
+    recordingHooks.dispose();
+  }
+}
+
 let stateService: Interpreter<TyperContext>;
 let storage: Storage | null = null;
-let bufferList: buffers.Buffer[] = [];
+let bufferList: Buffer[] = [];
 
 export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext>) {
   stateService = service;
   console.log("record.start");
   storage = Storage.getInstance(context);
   if (bufferList.length !== 0) {
-    resume(bufferList);
+    resumeOrNewRecording(bufferList);
   } else {
-    startNewRecording(bufferList);
+    startNewRecording();
   }
 }
 
-function resume(bufferList: buffers.Buffer[]) {
+function resumeOrNewRecording(buffers: Buffer[]) {
   const CONTINUE = "Continue current recording";
   const NEW = "New recording from active editor";
   vscode.window.showQuickPick([CONTINUE, NEW], { canPickMany: false })
@@ -186,11 +132,11 @@ function resume(bufferList: buffers.Buffer[]) {
         }
         switch (selection) {
           case NEW:
-            saveOrDiscardCurrent();
-            startNewRecording(bufferList);
+            saveOrDiscardCurrent(buffers);
+            startNewRecording();
             break;
           case CONTINUE:
-            resumeRecording(bufferList);
+            resumeRecording();
             break;
           default:
             break;
@@ -198,7 +144,7 @@ function resume(bufferList: buffers.Buffer[]) {
       });
 }
 
-function saveOrDiscardCurrent() {
+function saveOrDiscardCurrent(buffers: Buffer[]) {
   const SAVE = "Save current recording";
   const DISCARD = "Discard current recording";
   vscode.window.showQuickPick([SAVE, DISCARD], { canPickMany: false })
@@ -206,10 +152,10 @@ function saveOrDiscardCurrent() {
       selection => {
         switch (selection) {
           case SAVE:
-            saveRecording(bufferList, storage);
+            saveRecording(buffers, storage);
             break;
           case DISCARD:
-            bufferList.length = 0;
+            buffers.length = 0;
             break;
           default:
             break;
@@ -219,57 +165,48 @@ function saveOrDiscardCurrent() {
 }
 
 let currentActiveDoc: vscode.TextDocument;
-let currentOpenEditor: vscode.TextEditor | undefined;
-let currentChangeInfo: buffers.ChangeInfo;
+let textEditor: vscode.TextEditor | undefined;
+
+function handleDocumentChange(event: vscode.TextDocumentChangeEvent) {
+  if (event.document !== currentActiveDoc) {
+    console.log('Non-watched doc changed');
+  } else {
+    console.log(`documentChanges:
+    ${event.contentChanges.map(describeChange).join("\n")}`);
+    putAsync(documentChangeChannel, {
+      // store changes, selection change will commit
+      changes: event.contentChanges
+    });
+  }
+}
+
+function handleSelectionChange(event: vscode.TextEditorSelectionChangeEvent) {
+  // Only allow recording from one active editor at a time
+  // Breaks when you leave but that's fine for now.
+  if (event.textEditor !== textEditor) {
+    // TODO ask if user wants to save current recording
+    return;
+  }
+
+  statusBar.show("Recording");
+  const selections = event.selections || [];
+  console.log("");
+  console.log(`handleSelectionChange:
+    selections:
+        ${describeSelections(selections)}`);
+  putAsync(selectionChangeChannel, selections);
+}
 
 function registerRecordingEventHandlers() {
-  const onDidChangeTextDocument = vscode.workspace.onDidChangeTextDocument(
-    (event: vscode.TextDocumentChangeEvent) => {
-      if (event.document === currentActiveDoc) {
-        const newContent = currentActiveDoc.getText();
-        const diff = Diff.createPatch("", documentContent, newContent);
-        const undo = Diff.createPatch("", newContent, documentContent);
+  const documentChangeHandler = vscode.workspace.onDidChangeTextDocument(
+    handleDocumentChange
+  );
 
-        documentContent = newContent;
+  const selectionChangeHandler = vscode.window.onDidChangeTextEditorSelection(
+    handleSelectionChange
+  );
 
-        // store changes, selection change will commit
-        currentChangeInfo = {
-          changes: event.contentChanges,
-          diff: diff,
-          undo: undo
-        };
-      } else {
-        console.log('Non-watched doc changed');
-      }
-    });
-
-  const onDidChangeTextEditorSelection = vscode.window.onDidChangeTextEditorSelection(
-    (event: vscode.TextEditorSelectionChangeEvent) => {
-      // Only allow recording from one active editor at a time
-      // Breaks when you leave but that's fine for now.
-      if (event.textEditor !== currentOpenEditor) {
-        // TODO ask if user wants to save current recording
-        return;
-      }
-
-      statusBar.show("Recording");
-
-      const changeInfo = currentChangeInfo;
-      currentChangeInfo = { changes: [], diff: "", undo: "" };
-
-      const selections = event.selections || [];
-
-      const selection = selections[0];
-      const selectedText = currentActiveDoc.getText(selection);
-
-      console.log("");
-      console.log(buffers.describeChange(changeInfo));
-      console.log(buffers.describeSelection(selection, selectedText));
-
-      bufferList.push({ changeInfo: changeInfo, selections: selections });
-    });
-
-  const onDidCloseTextDocument = vscode.workspace.onDidCloseTextDocument(
+  const documentClosedHandler = vscode.workspace.onDidCloseTextDocument(
     (closedDoc: vscode.TextDocument) => {
       if (closedDoc === currentActiveDoc) {
         console.log('Watched doc was closed');
@@ -278,15 +215,15 @@ function registerRecordingEventHandlers() {
       }
     });
 
-  const onDidChangeActiveTextEditor = vscode.window.onDidChangeActiveTextEditor(
-    (newEditor: vscode.TextEditor | undefined) => {
+  const activeEditorChangedHandler = vscode.window.onDidChangeActiveTextEditor(
+    (_newEditor: vscode.TextEditor | undefined) => {
       // ask if user wants to save current recording and stop recording
     });
 
-  return [onDidChangeTextDocument,
-    onDidChangeTextEditorSelection,
-    onDidCloseTextDocument,
-    onDidChangeActiveTextEditor];
+  return [documentChangeHandler,
+    selectionChangeHandler,
+    documentClosedHandler,
+    activeEditorChangedHandler];
 }
 
 
@@ -295,21 +232,131 @@ function startRecording(currentOpenEditor: vscode.TextEditor) {
   // TODO if not new recording, check if doc has changed
   currentActiveDoc = currentOpenEditor.document;
   statusBar.show("");
+
+  const editChannel = chan(1);
+
+  go(function* () {
+    while (true) {
+      let changeInfo;
+      let selections;
+      let result = yield alts([documentChangeChannel, selectionChangeChannel], { priority: false });
+      if (result.channel === documentChangeChannel) {
+        changeInfo = result.value;
+        // I assume a documentChange is always followed by a selectionChange:
+        selections = yield selectionChangeChannel;
+        console.log("got both");
+      } else {
+        // But a selectionChange may arrive with no preceding documentChange
+        // if the user made a selection manually:
+        changeInfo = emptyChangeInfo;
+        selections = result.value;
+        console.log("got selection only");
+      }
+      if (changeInfo === CLOSED || selections === CLOSED) {
+        console.log("no more changes"); // check each of the two!
+        outputChannel.close();
+        return;
+      }
+      yield put(outputChannel,
+        { changeInfo: changeInfo, selections: selections });
+    }
+  });
+
+  go(function* () {
+    while (true) {
+      let result = yield alts([undoChannel, outputChannel], { priority: true });
+      if (result.channel === undoChannel) {
+        console.log("UNDO");
+        const lastBuffer = bufferList[bufferList.length - 1];
+        if (isStopPoint(lastBuffer)) {
+          bufferList.pop();
+        } else {
+          let frameIndex = bufferList.length - 2;
+          let previousFrameOrStartingPoint = bufferList[frameIndex];
+          while (isStopPoint(previousFrameOrStartingPoint)) {
+            frameIndex -= 1;
+            previousFrameOrStartingPoint = bufferList[frameIndex];
+          }
+          if (previousFrameOrStartingPoint) {
+            const undoFrame: Frame = reverseFrame(<Frame>lastBuffer, previousFrameOrStartingPoint, currentActiveDoc);
+            if (!textEditor) {
+              // error
+            } else {
+              // apply the undo to the document:
+              applyFrame(undoFrame, textEditor, editChannel);
+              // wait for applyFrame to finish:
+              yield editChannel;
+              bufferList.pop();
+              // ignore next outputChannel message; it's generated by the callbacks of our undo:
+              yield outputChannel;
+            }
+          }
+        }
+      } else { // result came from outputChannel
+        let buffer = result.value;
+        if (buffer === CLOSED) {
+          console.log("no more output");
+          saveOrDiscardCurrent(bufferList);
+          return;
+        }
+        
+        bufferList.push(buffer);
+      }
+    }
+  });
 }
 
-function startNewRecording(bufferList: buffers.Buffer[]) {
-  currentOpenEditor = vscode.window.activeTextEditor;
-  if (!currentOpenEditor) {
-    return;
+function startNewRecording() {
+  textEditor = vscode.window.activeTextEditor;
+  if (textEditor) {
+    insertStartingPoint(textEditor);
+    startRecording(textEditor);
   }
-  insertStartingPoint(bufferList, currentOpenEditor);
-  startRecording(currentOpenEditor);
 }
 
-function resumeRecording(bufferList: buffers.Buffer[]) {
-  currentOpenEditor = vscode.window.activeTextEditor;
-  if (!currentOpenEditor) {
+function resumeRecording() {
+  textEditor = vscode.window.activeTextEditor;
+  if (textEditor) {
+    startRecording(textEditor);
+  }
+}
+
+function insertStartingPoint(textEditor: vscode.TextEditor) {
+  const initialDocumentContent = textEditor.document.getText();
+  const language = textEditor.document.languageId;
+  const selections = textEditor.selections;
+
+  //console.log(`initial content: "${initialDocumentContent}"`);
+
+  putAsync(outputChannel, { content: initialDocumentContent, language, selections });
+}
+
+function saveRecording(buffers: Buffer[], storage: Storage | null) {
+  if (buffers.length < 2) {
+    showError("Cannot save macro with no content.");
     return;
   }
-  startRecording(currentOpenEditor);
+  if (!storage) {
+    showError("Cannot save macro!");
+    return;
+  }
+  vscode.window.showInputBox({
+    prompt: "Give this thing a name",
+    placeHolder: "cool-macro"
+  })
+    .then(name => {
+      if (name) {
+        return storage.save({
+          name,
+          description: "",
+          buffers: buffers
+        })
+          .then(macro => {
+            statusBar.show(`Saved "${macro.name}"`);
+            continueOrEndRecording(buffers);
+          });
+      } else { // User hit Escape, name is undefined
+        continueOrEndRecording(buffers);
+      }
+    });
 }

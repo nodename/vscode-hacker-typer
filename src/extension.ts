@@ -1,14 +1,14 @@
 "use strict";
 
 import * as vscode from "vscode";
+import * as idle from "./idle";
 import * as recording from "./record";
 import * as play from "./play";
 import * as sound from "./sound";
 import { interpret, Interpreter } from "xstate";
-import { TyperContext } from "./stateTypes";
+import { TyperContext } from "./TyperContext";
 import { typerMachine } from "./states";
 import * as statusBar from "./statusBar";
-import * as idle from "./idle";
 
 export let stateService: Interpreter<TyperContext>;
 
@@ -26,7 +26,8 @@ const actionImplementations: FnDict = {
   startPlaying: startPlaying,
   playStopSound: sound.playStopSound,
   playEndSound: sound.playEndSound,
-  disablePlaying: play.disable
+  toggleSilence: sound.toggleSilence,
+  disablePlaying: play.disposePlayingCommands
 };
 
 // this method is called when your extension is activated
@@ -74,7 +75,7 @@ function startPlaying(context: vscode.ExtensionContext) {
   play.start(context, stateService);
 }
 
-// this function is called when your extension is deactivated
+// this function is called when the extension is deactivated
 export function deactivate() {
   statusBar.dispose();
 }

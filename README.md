@@ -78,7 +78,7 @@ Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator)
 
 NOTE! The only ways to exit the recording state are `Cancel Recording` and `Save Macro`.
 
-### Commands available in the PLAYBACK state
+### Commands available in the PLAY state
 
 | Command | Key Binding |
 |-----------|:-----------:|

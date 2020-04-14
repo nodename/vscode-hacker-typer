@@ -5,7 +5,7 @@
   "keywords": [
     "vscode"
   ],
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "nodename",
   "author": {
     "name": "Jani Eväkallio"
@@ -86,6 +86,10 @@
       {
         "command": "nodename.vscode-hacker-typer-fork.cancelPlaying",
         "key": "cmd+shift+t x"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.toggleSilence",
+        "key": "cmd+shift+t t"
       }
     ],
     "commands": [
@@ -138,6 +142,11 @@
         "command": "nodename.vscode-hacker-typer-fork.cancelPlaying",
         "title": "Cancel Playing",
         "category": "HackerTyper"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.toggleSilence",
+        "title": "Toggle Silence",
+        "category": "HackerTyper"
       }
     ]
   },
@@ -151,19 +160,15 @@
   "devDependencies": {
     "@types/mocha": "^2.2.42",
     "@types/node": "^8.10.53",
-    "@types/promise-queue": "^2.2.0",
-    "tslint": "^5.19.0",
+    "tslint": "^5.20.1",
     "typescript": "^3.6.2",
     "vscode": "^1.1.36"
   },
   "dependencies": {
-    "@types/diff": "^4.0.2",
-    "diff": "^4.0.1",
     "js-csp": "^1.0.1",
     "music-metadata": "^4.4.0",
     "node-wav-player": "^0.1.0",
     "on-change": "^2.0.1",
-    "promise-queue": "^2.2.5",
     "token-types": "1.0.2",
     "vscode-cache": "^0.3.0"
   }

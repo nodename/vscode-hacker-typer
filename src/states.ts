@@ -1,10 +1,12 @@
 "use strict";
 
 import { Machine } from "xstate";
-import { TyperContext } from "./stateTypes";
+import { TyperContext } from "./TyperContext";
+
+const typerContext = {};
 
 const playStates = {
-    id: 'playing',
+    id: 'play',
     strict: true,
     initial: 'start',
     states: {
@@ -36,6 +38,7 @@ const playStates = {
 const typerStates = {
     id: 'typer',
     strict: true,
+    context: typerContext,
     initial: 'idle',
     states: {
         idle: {
@@ -55,6 +58,9 @@ const typerStates = {
         play: {
             exit: 'disablePlaying',
             on: {
+                TOGGLE_SILENCE: {
+                    actions: 'toggleSilence'
+                },
                 DONE_PLAYING: 'idle'
             },
             ...playStates

@@ -1,6 +1,7 @@
 "use strict";
 
 import * as vscode from "vscode";
+import { Edit, toEdit, kindOf } from "./edit";
 
 export type StartingPoint = {
   content: string;
@@ -15,9 +16,7 @@ export type StopPoint = {
 };
 
 export type ChangeInfo = {
-  changes: vscode.TextDocumentContentChangeEvent[],
-  diff: string,
-  undo: string
+  changes: vscode.TextDocumentContentChangeEvent[]
 };
 
 export type Frame = {
@@ -26,6 +25,10 @@ export type Frame = {
 };
 
 export type Buffer = StartingPoint | StopPoint | Frame;
+
+export const emptyChangeInfo = {
+  changes: []
+};
 
 export function isStartingPoint(buffer: Buffer): buffer is StartingPoint {
   return (
@@ -44,17 +47,74 @@ export function isFrame(buffer: Buffer): buffer is Frame {
   return !isStartingPoint(buffer) && !isStopPoint(buffer);
 }
 
-export function describeChange(changeInfo: ChangeInfo): string {
-  const change = changeInfo.changes[0];
-  return `replace text from ${change.range.start.line}, ${change.range.start.character} to ` +
-    `${change.range.end.line}, ${change.range.end.character} ` +
-    `with "${change.text}"`;
+export function describeChanges(changeInfo: ChangeInfo): string {
+  return changeInfo.changes.map(describeChange).join("\n");
 }
 
-export function describeSelection(selection: vscode.Selection, selectedText: string): string {
-  return `selection: start: ${selection.start.line}, ${selection.start.character}, ` +
-    `end: ${selection.end.line}, ${selection.end.character}, ` +
-    `anchor: ${selection.anchor.line}, ${selection.anchor.character} ` +
-    `active: ${selection.active.line}, ${selection.active.character} ` +
-    `contents: "${selectedText}"`;
+export function describeChange(changeEvent: vscode.TextDocumentContentChangeEvent): string {
+  return `replace text from ${changeEvent.range.start.line}, ${changeEvent.range.start.character} to ` +
+    `${changeEvent.range.end.line}, ${changeEvent.range.end.character} ` +
+    `with "${changeEvent.text}"`;
+}
+
+export function describeSelections(selections: vscode.Selection[]): string {
+  return selections.map(selection => describeSelection(selection, undefined)).join("\n");
+}
+
+export function describeSelection(selection: vscode.Selection, selectedText: string | undefined = undefined): string {
+  return `selection:
+     start: ${selection.start.line}, ${selection.start.character},
+     end: ${selection.end.line}, ${selection.end.character},
+     anchor: ${selection.anchor.line}, ${selection.anchor.character}
+     active: ${selection.active.line}, ${selection.active.character}`;
+}
+
+function reverseChangeEvent(
+  changeEvent: vscode.TextDocumentContentChangeEvent,
+  document: vscode.TextDocument): vscode.TextDocumentContentChangeEvent {
+  const newStart = changeEvent.range.start;
+  const newRangeOffset = changeEvent.rangeOffset;
+
+  const textLines = changeEvent.text.split("\n");
+  const nls = textLines.length - 1;
+  const lastLine = textLines[textLines.length - 1];
+
+  const newEndLine = changeEvent.range.start.line + nls;
+  const newEndChar = changeEvent.range.start.character + lastLine.length;
+  const newEnd = new vscode.Position(newEndLine, newEndChar);
+
+  const newRange = new vscode.Range(newStart, newEnd);
+  let newText = document.getText(newRange);
+  const newRangeLength = newText.length;
+
+  const edit: Edit = toEdit(changeEvent);
+  if (kindOf(edit) === "Insert") {
+    newText = "";
+  }
+
+  return {
+    range: newRange,
+    rangeOffset: newRangeOffset,
+    rangeLength: newRangeLength,
+    text: newText
+  };
+}
+
+function reverseChangeInfo(
+  changeInfo: ChangeInfo,
+  document: vscode.TextDocument): ChangeInfo {
+  const newChanges = changeInfo.changes.map(e => reverseChangeEvent(e, document));
+  return {
+    changes: newChanges
+  };
+}
+
+export function reverseFrame(
+  frame: Frame,
+  previousFrameOrStartingPoint: Frame | StartingPoint,
+  document: vscode.TextDocument): Frame {
+  return {
+    changeInfo: reverseChangeInfo(frame.changeInfo, document),
+    selections: previousFrameOrStartingPoint.selections
+  };
 }

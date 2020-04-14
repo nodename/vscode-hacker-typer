@@ -5,7 +5,14 @@ import * as mm from 'music-metadata';
 const wavPlayer = require("node-wav-player");
 const path = require("path");
 
-const state = { isPlaying: false };
+const state = {
+    silent: false,
+    isPlaying: false
+};
+
+export function toggleSilence() {
+    state.silent = !(state.silent);
+}
 
 export function playStopSound(): any {
     let soundFileName = "beep-26.wav";
@@ -36,6 +43,10 @@ export function playEndSound(): any {
 }
 
 async function playSound(soundFilePath: string) {
+    if (state.silent) {
+        return;
+    }
+    
     let duration: number | undefined;
     await mm.parseFile(soundFilePath)
         .then(metadata => {

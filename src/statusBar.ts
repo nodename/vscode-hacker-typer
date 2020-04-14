@@ -9,6 +9,7 @@ const appName = "HackerTyper";
 
 const barState = onChange({
   appState: "",
+  silent: false,
   message: ""
 },
   (path, value, previousValue) => {
@@ -23,12 +24,17 @@ export function setAppState(state: string) {
   barState.appState = state;
 }
 
+export function setSilent(yesno: boolean) {
+  barState.silent = yesno;
+}
+
 export function show(text: string) {
   barState.message = text;
 }
 
 function display() {
-  myStatusBarItem.text = `${appName} ${barState.appState}: ${barState.message}`;
+  const silentString = barState.silent ? " (silent)" : "";
+  myStatusBarItem.text = `${appName} ${barState.appState}${silentString}: ${barState.message}`;
   myStatusBarItem.show();
 }
 

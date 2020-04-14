@@ -34,10 +34,8 @@ export interface SerializedStopPoint {
 }
 export interface SerializedFrame {
   changeInfo: {
-    changes: SerializedChangeEvent[],
-    diff: string,
-    undo: string
-  },
+    changes: SerializedChangeEvent[]
+  };
   selections: SerializedSelection[];
 }
 
@@ -97,10 +95,8 @@ export function rehydrateBuffer(serialized: SerializedBuffer): buffers.Buffer {
 
   return {
     changeInfo: {
-      changes: serialized.changeInfo.changes.map(rehydrateChangeEvent),
-      diff: serialized.changeInfo.diff,
-      undo: serialized.changeInfo.undo
+      changes: serialized.changeInfo.changes.map(rehydrateChangeEvent)
     },
     selections: serialized.selections.map(rehydrateSelection)
-  };;
+  };
 }
