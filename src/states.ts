@@ -23,7 +23,7 @@ const playStates = {
             }
         },
         paused: {
-            entry: 'playStopSound',
+            entry: ['playStopSound', 'pauseAutoPlay'],
             on: {
                 RESUME_PLAY: 'playing'
             }

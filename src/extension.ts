@@ -26,6 +26,7 @@ const actionImplementations: FnDict = {
   startPlaying: startPlaying,
   playStopSound: sound.playStopSound,
   playEndSound: sound.playEndSound,
+  pauseAutoPlay: play.pauseAutoPlay,
   toggleSilence: sound.toggleSilence,
   disablePlaying: play.disposePlayingCommands
 };
