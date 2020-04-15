@@ -1,10 +1,6 @@
 # VSCode Hacker Typer
 
-_Great for live coding presentations, impressing your friends, or just trying to look busy at work._
-
-![Promotional video](docs/hackertyper-video.gif)
-
-Hacker Typer allows you to record yourself programming, and to play the same keystrokes by wildly mashing any key. Supports typing, editing, selections (including multicursor) and autocompletions. Basically, it looks like you have programming superpowers.
+Hacker Typer allows you to record your keystrokes in VSCode, and to play them back either by typing random keys or automatically. Supports typing, editing, selections (including multicursor) and autocompletions).
 
 This version is a fork of [Jani Eväkallio's original extension](https://github.com/jevakallio/vscode-hacker-typer).
 
@@ -15,7 +11,8 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 ## Features
 
 - Record and play **macros**.
-- Insert stop points, so you don't accidentally overrun your talking points while live coding.
+- Insert stop points, so you don't accidentally overrun your talking points while "live coding."
+- Play macros back either automatically or by typing randomly.
 
 ## How to use Hacker Typer
 
@@ -42,16 +39,19 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 2. Execute `HackerTyper: Play Macro` command from the command palette (or `Cmd+Shift+T P`).
 3. Choose your previously saved macro.
 4. The active workspace will be reset to the contents of the macro's starting point. If there is no active text editor, a new anonymous unsaved file will be opened.
-5. Start hammering your keyboard like a mad-person.
+5. Start hammering your keyboard like a mad-person, or hit the '`' (backtick) key to play the macro back automatically.
+You can toggle in or out of autoplay mode at any time.
 6. WHOA HOW ARE YOU TYPING SO FAST
-7. Feel free to move around the file, highlight code etc. When you continue typing, the next character will be inserted where you did while recording.
+7. Feel free to move around the file, highlight code etc. When you continue play, the next character will be inserted where you did while recording.
 8. A low sound is played when you reach the end of your macro. You must press `ENTER` to exit playback. 
 
 ### Stop points
 
 While in recording mode, execute the `HackerTyper: Insert Stop Point` command from the command palette (or `Cmd+Shift+T I`).
 
-When you hit a stop point in play mode, a high sound is played. You must press `ENTER` to break out of the stop point and continue playing. All other keystrokes are ignored until you break out.
+When you hit a stop point in play mode, either manual or autoplay, a high sound is played. You must press `ENTER` to break out of the stop point and continue playing. All other keystrokes are ignored until you break out.
+
+You can turn off/on both the stop-point sound and the end-of-macro sound by typing `Cmd+Shift+T T` (the `HackerTyper: Toggle Silence` command).
 
 ## Command summary
 
@@ -67,7 +67,7 @@ When you hit a stop point in play mode, a high sound is played. You must press `
 
 Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator). 
 
-### Commands available in the RECORDING state
+### Commands available in the RECORD state
 
 | Command | Key Binding |
 |-----------|:-----------:|
@@ -83,6 +83,8 @@ NOTE! The only ways to exit the recording state are `Cancel Recording` and `Save
 | Command | Key Binding |
 |-----------|:-----------:|
 | `HackerTyper: Cancel Playing` |  Cmd+Shift+T X |
+| `HackerTyper: Toggle Silence` |  Cmd+Shift+T T |
+| `toggle autoplay mode` |  ` (backtick) |
 
 ## Current limitations
 
