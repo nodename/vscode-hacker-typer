@@ -1,6 +1,6 @@
 # VSCode Hacker Typer
 
-Hacker Typer allows you to record your keystrokes in VSCode, and to play them back either by typing random keys or automatically. Supports typing, editing, selections (including multicursor) and autocompletions).
+Hacker Typer allows you to record your keystrokes in VSCode, and to play them back either automatically or by typing random keys. Supports typing, editing, selections (including multicursor) and autocompletions.
 
 This version is a fork of [Jani Eväkallio's original extension](https://github.com/jevakallio/vscode-hacker-typer).
 
