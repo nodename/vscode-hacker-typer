@@ -293,6 +293,8 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
 
     // Commands provided by the onType command or by autoPlay:
     inputChannel = chan(inputBufferSize);
+
+    // Commands provided to runPlay:
     commandChannel = chan(1);
     
     // Buffers from the macro, to be applied in sequence to the document:
