@@ -28,8 +28,9 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 3. The current content and selections of the active editor will be snapshotted.
 4. Start typing code. Every keystroke is recorded into an in-memory buffer, including deletions, selection changes, etc.
 5. If you make a mistake you can back up by typing `Cmd+Shift+T U` (the `Undo Last Recorded Buffer` command).
-6. You can cancel recording with `HackerTyper: Cancel Recording` (`Cmd+Shift+T C`)
-7. When you're ready, execute `HackerTyper: Save Macro` command from the command palette (or `Cmd+Shift+T S`.)
+6. You can cancel recording with `HackerTyper: Cancel Recording` (`Cmd+Shift+T C`).
+7. When you're ready, execute `HackerTyper: Save or Discard Macro` command from the command palette (or `Cmd+Shift+T S`),
+  and choose `Save` or `Discard`.
 8. Give your macro a name.
 9. You're done! Or if you wish, you can continue recording the macro.
 
@@ -42,16 +43,17 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 5. Start hammering your keyboard like a mad-person, or hit the '`' (backtick) key to play the macro back automatically.
 You can toggle in or out of autoplay mode at any time.
 6. WHOA HOW ARE YOU TYPING SO FAST
-7. Feel free to move around the file, highlight code etc. When you continue play, the next character will be inserted where you did while recording.
-8. A low sound is played when you reach the end of your macro. You must press `ENTER` to exit playback. 
+7. You can cancel play with `HackerTyper: Cancel Playing` (`Cmd+Shift+T X`).
+8. Feel free to move around the file, highlight code etc. When you continue play, the next character will be inserted where you did while recording.
+9. A low sound ("boop") is played when you reach the end of your macro. You must press `ENTER` to exit playback. 
 
 ### Stop points
 
 While in recording mode, execute the `HackerTyper: Insert Stop Point` command from the command palette (or `Cmd+Shift+T I`).
 
-When you hit a stop point in play mode, either manual or autoplay, a high sound is played. You must press `ENTER` to break out of the stop point and continue playing. All other keystrokes are ignored until you break out.
+When you hit a stop point in play mode, either manual or autoplay, a high sound ("beep") is played. You must press `ENTER` to break out of the stop point and continue playing. All other keystrokes are ignored until you break out.
 
-You can turn off/on both the stop-point sound and the end-of-macro sound by typing `Cmd+Shift+T T` (the `HackerTyper: Toggle Silence` command).
+You can turn off/on both beeps and boops by typing `Cmd+Shift+T T` (the `HackerTyper: Toggle Silence` command).
 
 ## Command summary
 
@@ -73,10 +75,10 @@ Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator)
 |-----------|:-----------:|
 | `HackerTyper: Insert Stop Point` | Cmd+Shift+T I |
 | `HackerTyper: Undo Last Recorded Buffer` | Cmd+Shift+T U |
-| `HackerTyper: Save Macro` | Cmd+Shift+T S |
+| `HackerTyper: Save or Discard Macro` | Cmd+Shift+T S |
 | `HackerTyper: Cancel Recording` | Cmd+Shift+T C |
 
-NOTE! The only ways to exit the recording state are `Cancel Recording` and `Save Macro`.
+NOTE! The only ways to exit the recording state are `Cancel Recording` and `Save or Discard Macro`.
 
 ### Commands available in the PLAY state
 

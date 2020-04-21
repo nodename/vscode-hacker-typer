@@ -68,7 +68,7 @@
         "key": "cmd+shift+t p"
       },
       {
-        "command": "nodename.vscode-hacker-typer-fork.saveMacro",
+        "command": "nodename.vscode-hacker-typer-fork.saveOrDiscardMacro",
         "key": "cmd+shift+t s"
       },
       {
@@ -104,8 +104,8 @@
         "category": "HackerTyper"
       },
       {
-        "command": "nodename.vscode-hacker-typer-fork.saveMacro",
-        "title": "Save Macro",
+        "command": "nodename.vscode-hacker-typer-fork.saveOrDiscardMacro",
+        "title": "Save or Discard Macro",
         "category": "HackerTyper"
       },
       {

@@ -47,7 +47,7 @@ function reverseDelete(d: Delete, text: string): Insert {
 function reverseInsert(i: Insert): Delete {
     const textLines = i.text.split("\n");
     const nls = textLines.length - 1;
-    const lastTextLine = textLines[textLines.length - 1];
+    const lastTextLine = textLines[nls];
 
     const newEndLine = i.start.line + nls;
     const newEndChar = i.start.character + lastTextLine.length;
@@ -62,7 +62,7 @@ function reverseInsert(i: Insert): Delete {
 function reverseReplace(r: Replace, text: string): Replace {
     const textLines = text.split("\n");
     const nls = textLines.length - 1;
-    const lastTextLine = textLines[textLines.length - 1];
+    const lastTextLine = textLines[nls];
 
     const newEndLine = r.range.start.line + nls;
     const newEndChar = lastTextLine.length;
@@ -138,10 +138,10 @@ export function toEdit(change: vscode.TextDocumentContentChangeEvent): Edit {
 async function applyChange(
     changeEvent: vscode.TextDocumentContentChangeEvent,
     editBuilder: vscode.TextEditorEdit) {
-    console.log(`applyContentChange:
-    text: ${changeEvent.text}`);
-    console.log(`range: ${changeEvent.range}`);
-    console.log(`rangeLength: ${changeEvent.rangeLength}`);
+    // console.log(`applyContentChange:
+    // text: ${changeEvent.text}`);
+    // console.log(`range: ${changeEvent.range}`);
+    // console.log(`rangeLength: ${changeEvent.rangeLength}`);
 
     const edit: Edit = toEdit(changeEvent);
     applyEdit(edit, editBuilder);
@@ -171,16 +171,16 @@ export function applyFrame(frame: Frame, textEditor: vscode.TextEditor, out: Cha
     });
 }
 
-export async function replaceAllContent(editor: vscode.TextEditor, newContent: string) {
-    await editor.edit(edit => {
-        const lineCount = editor.document.lineCount;
+export async function replaceAllContent(textEditor: vscode.TextEditor, newContent: string) {
+    await textEditor.edit(edit => {
+        const lineCount = textEditor.document.lineCount;
         const range = new vscode.Range(
             new vscode.Position(0, 0),
             new vscode.Position(
                 lineCount,
                 Math.max(
                     0,
-                    editor.document.lineAt(Math.max(0, lineCount - 1)).text.length - 1
+                    textEditor.document.lineAt(Math.max(0, lineCount - 1)).text.length - 1
                 )
             )
         );

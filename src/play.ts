@@ -77,7 +77,7 @@ function registerTypeCommand() {
         startAutoPlay();
         break;
       default:
-        putAsync(inputChannel, breakoutCommand);
+        putAsync(inputChannel, nextCommand);
         break;
     }
   };

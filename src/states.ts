@@ -3,7 +3,43 @@
 import { Machine } from "xstate";
 import { TyperContext } from "./TyperContext";
 
-const typerContext = {};
+const recordStates = {
+    id: 'record',
+    strict: true,
+    initial: 'start',
+    states: {
+        start: {
+            entry: ['disableIdling', 'enableRecording', 'startRecording'],
+            on: {
+                '': 'recording'
+            }
+        },
+        recording: {
+            on: {
+                SAVE_RECORDING: 'saving'
+            }
+        },
+        saving: {
+            entry: 'saveRecording',
+            on: {
+                RECORDING_SAVED: 'saved',
+                RECORDING_NOT_SAVED: 'recording'
+            }
+        },
+        saved: {
+            entry: 'continueOrEndRecording',
+            on: {
+                RESUME_RECORDING: 'resumed'
+            }
+        },
+        resumed: {
+            entry: 'resumeRecording',
+            on: {
+                SAVE_RECORDING: 'saving'
+            }
+        }
+    }
+};
 
 const playStates = {
     id: 'play',
@@ -38,7 +74,6 @@ const playStates = {
 const typerStates = {
     id: 'typer',
     strict: true,
-    context: typerContext,
     initial: 'idle',
     states: {
         idle: {
@@ -49,11 +84,11 @@ const typerStates = {
             }
         },
         record: {
-            entry: ['disableIdling', 'enableRecording', 'startRecording'],
             exit: 'disableRecording',
             on: {
                 DONE_RECORDING: 'idle'
-            }
+            },
+            ...recordStates
         },
         play: {
             exit: 'disablePlaying',
