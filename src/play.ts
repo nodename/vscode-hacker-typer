@@ -33,7 +33,7 @@ let stateService: Interpreter<TyperContext>;
 
 const stopPointBreakoutChar = `\n`; // ENTER
 const startAutoPlayChar = '`';
-const stopAutoPlayChar = '`';
+const pauseAutoPlayChar = '`';
 
 const inputBufferSize = 40;
 let inputChannel: Channel;
@@ -47,8 +47,11 @@ let typeCommand: vscode.Disposable;
 let toggleSilenceCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
 
+const autoPlayInterval = 60;
+let autoPlayControlChannel: Channel;
+
 export function registerPlayingCommands() {
-  typeCommand = registerTypeCommand();
+  setManualKeyboardMode();
   toggleSilenceCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.toggleSilence", toggleSilence);
   cancelPlayingCommand = vscode.commands.registerCommand(
@@ -59,6 +62,10 @@ export function disposePlayingCommands() {
   typeCommand.dispose();
   cancelPlayingCommand.dispose();
   toggleSilenceCommand.dispose();
+}
+
+function setManualKeyboardMode() {
+  typeCommand = registerTypeCommand();
 }
 
 function registerTypeCommand() {
@@ -85,7 +92,12 @@ function registerTypeCommand() {
   if (typeCommand) {
     typeCommand.dispose();
   }
+
   return vscode.commands.registerCommand("type", onType);
+}
+
+function setAutoKeyboardMode() {
+  typeCommand = registerAutoTypeCommand();
 }
 
 function registerAutoTypeCommand() {
@@ -95,8 +107,8 @@ function registerAutoTypeCommand() {
       case stopPointBreakoutChar:
         resumeAutoPlay();
         break;
-      case stopAutoPlayChar:
-        stopAutoPlay();
+      case pauseAutoPlayChar:
+        pauseAutoPlay();
         break;
       default:
         break;
@@ -106,56 +118,67 @@ function registerAutoTypeCommand() {
   if (typeCommand) {
     typeCommand.dispose();
   }
+
   return vscode.commands.registerCommand("type", onType);
 }
 
-const autoPlayInterval = 100;
-let autoPlayControlChannel = chan(1);
+const enum AutoPlayState {
+  Play,
+  Pause,
+  Resume,
+  Stop,
+  None
+}
 
 function runAutoPlay(autoPlayControlChannel: Channel, inputChannel: Channel) {
   go(function* () {
-    let state: string = "";
-      while (true) {
-        let result = yield alts([autoPlayControlChannel, timeout(autoPlayInterval)], { priority: true });
-        if (result.channel === autoPlayControlChannel) {
-          state = result.value;
-        } else { // waited
-          switch (state) {
-            case "play":
-              yield put(inputChannel, nextCommand);
-              break;
-            case "pause":
-              break;
-            case "resume":
-              yield put(inputChannel, breakoutCommand);
-              state = "play";
-              break;
-            case "stop":
-              break;
-            default:
-              break;
-          }
+    let state: AutoPlayState = AutoPlayState.None;
+    while (true) {
+      let result = yield alts([autoPlayControlChannel, timeout(autoPlayInterval)], { priority: true });
+      if (result.channel === autoPlayControlChannel) {
+        state = result.value;
+      } else { // timeout expired, time to do the action for my current state:
+        switch (state) {
+          case AutoPlayState.Play:
+            yield put(inputChannel, nextCommand);
+            break;
+          case AutoPlayState.Pause:
+            // do nothing
+            break;
+          case AutoPlayState.Resume:
+            yield put(inputChannel, breakoutCommand);
+            state = AutoPlayState.Play;
+            break;
+          case AutoPlayState.Stop:
+            return; // no more autoplay until we re-enter play state
+            break;
+          default:
+            break;
         }
       }
+    }
   });
 }
 
 function startAutoPlay() {
-  typeCommand = registerAutoTypeCommand();
-  putAsync(autoPlayControlChannel, "play");
+  setAutoKeyboardMode();
+  putAsync(autoPlayControlChannel, AutoPlayState.Play);
 }
 
 export function pauseAutoPlay() {
-  putAsync(autoPlayControlChannel, "pause");
+  putAsync(autoPlayControlChannel, AutoPlayState.Pause);
+  setManualKeyboardMode();
 }
 
-function resumeAutoPlay() {
-  putAsync(autoPlayControlChannel, "resume");
+export function resumeAutoPlay() {
+  setAutoKeyboardMode();
+  putAsync(autoPlayControlChannel, AutoPlayState.Resume);
 }
 
-function stopAutoPlay() {
-  putAsync(autoPlayControlChannel, "stop");
-  typeCommand = registerTypeCommand();
+// Do this when leaving the play state
+export function stopAutoPlay() {
+  putAsync(autoPlayControlChannel, AutoPlayState.Stop);
+  setManualKeyboardMode();
 }
 
 // forwards inputChannel commands to commandChannel
@@ -174,6 +197,7 @@ function runInput(inputChannel: Channel, commandChannel: Channel) {
             command = yield inputChannel;
             switch (command) {
               case breakoutCommand:
+                commandChannel.close();
                 statusBar.show("Done playing");
                 stateService.send('DONE_PLAYING'); // This takes us out of the play state, back to the idle state
                 return;
@@ -265,7 +289,9 @@ function runPlay(
       }
       controlCommand = yield commandChannel;
     }
-    console.log("Command channel closed"); // This should not happen
+    // commandChannel closed:
+    console.log("Command channel closed");
+    return;
   });
 }
 
@@ -296,10 +322,12 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
 
     // Commands provided to runPlay:
     commandChannel = chan(1);
-    
+
+    autoPlayControlChannel = chan(1);
+
     // Buffers from the macro, to be applied in sequence to the document:
     const playChannel = operations.fromColl(macro.buffers);
-    
+
     // goroutines:
     runAutoPlay(autoPlayControlChannel, inputChannel);
     runInput(inputChannel, commandChannel);

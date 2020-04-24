@@ -91,6 +91,8 @@ function registerRecordingCommands() {
   return [insertStopCommand, undoCommand, saveOrDiscardMacroCommand, cancelRecordingCommand];
 }
 
+let recordingHooks: vscode.Disposable;
+
 export function registerRecordingHooks() {
   console.log("registerRecordingHooks");
   const commands: vscode.Disposable[] = registerRecordingCommands();
@@ -101,7 +103,6 @@ export function registerRecordingHooks() {
   );
 }
 
-let recordingHooks: vscode.Disposable;
 export function disposeRecordingHooks(context: vscode.ExtensionContext) {
   console.log("disposeRecordingHooks");
   if (recordingHooks) {

@@ -15,7 +15,7 @@ export let stateService: Interpreter<TyperContext>;
 type FnType = (context: vscode.ExtensionContext) => void;
 type FnDict = Record<string, FnType>;
 // This FnDict maps state-machine actions to their implementations.
-// the context is passed as an argument to each implementation function.
+// the extension context is passed as an argument to each implementation function.
 const actionImplementations: FnDict = {
   enableIdling: idle.registerIdleCommands,
   disableIdling: idle.disposeIdleCommands,
@@ -27,18 +27,20 @@ const actionImplementations: FnDict = {
   disableRecording: recording.disposeRecordingHooks,
   enablePlaying: play.registerPlayingCommands,
   startPlaying: startPlaying,
-  playStopSound: sound.playStopSound,
+  playPauseSound: sound.playPauseSound,
   playEndSound: sound.playEndSound,
   pauseAutoPlay: play.pauseAutoPlay,
+  resumeAutoPlay: play.resumeAutoPlay,
+  stopAutoPlay: play.stopAutoPlay,
   toggleSilence: sound.toggleSilence,
   disablePlaying: play.disposePlayingCommands
 };
 
-// this method is called when your extension is activated
-// your extension is activated the first time one of its commands is executed
+// this method is called when the extension is activated;
+// the extension is activated the first time one of its commands is executed
 export function activate(context: vscode.ExtensionContext) {
   // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
+  // This line of code will only be executed once when the extension is activated
   console.log('Extension "vscode-hacker-typer-fork" active');
 
   statusBar.init();
@@ -64,6 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
     console.log(`Transition to ${stateName} state`);
     statusBar.setAppState(stateName);
     state.actions.forEach(action => {
+      console.log(`${action.type}`);
       actionImplementations[action.type](context);
     });
   });

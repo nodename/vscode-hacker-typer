@@ -4,7 +4,6 @@ import { Machine } from "xstate";
 import { TyperContext } from "./TyperContext";
 
 const recordStates = {
-    id: 'record',
     strict: true,
     initial: 'start',
     states: {
@@ -42,7 +41,6 @@ const recordStates = {
 };
 
 const playStates = {
-    id: 'play',
     strict: true,
     initial: 'start',
     states: {
@@ -59,15 +57,15 @@ const playStates = {
             }
         },
         paused: {
-            entry: ['playStopSound', 'pauseAutoPlay'],
+            entry: ['playPauseSound', 'pauseAutoPlay'],
+            exit: 'resumeAutoPlay',
             on: {
                 RESUME_PLAY: 'playing'
             }
         },
         atEnd: {
-            entry: 'playEndSound'
+            entry: ['playEndSound', 'stopAutoPlay']
         }
-
     }
 };
 
@@ -91,7 +89,7 @@ const typerStates = {
             ...recordStates
         },
         play: {
-            exit: 'disablePlaying',
+            exit: ['stopAutoPlay', 'disablePlaying'],
             on: {
                 TOGGLE_SILENCE: {
                     actions: 'toggleSilence'

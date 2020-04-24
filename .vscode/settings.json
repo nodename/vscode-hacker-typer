@@ -6,5 +6,6 @@
   "search.exclude": {
     "out": true // set this to false to include "out" folder in search results
   },
-  "flow.enabled": false
+  "flow.enabled": false,
+  "editor.autoClosingBrackets": "never"
 }

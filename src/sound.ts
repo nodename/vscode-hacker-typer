@@ -14,7 +14,7 @@ export function toggleSilence() {
     state.silent = !(state.silent);
 }
 
-export function playStopSound(): any {
+export function playPauseSound(): any {
     let soundFileName = "beep-26.wav";
     let soundFilePath = path.join(
         __dirname,
