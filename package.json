@@ -48,7 +48,6 @@
     "keybindings": [
       {
         "command": "nodename.vscode-hacker-typer-fork.recordMacro",
-        "when": "editorTextFocus",
         "key": "cmd+shift+t r"
       },
       {
