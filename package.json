@@ -237,12 +237,7 @@
     "on-change": "^2.0.1",
     "token-types": "1.0.2",
     "vscode-cache": "^0.3.0",
-<<<<<<< HEAD
-    "xstate": "^4.9.1"
-  }
-=======
     "vscode": "1.1.37"
   },
   "WARNING": "All occurrences of strtok3/lib/type in music-metadata source files must be changed to strtok3/lib/types"
->>>>>>> 434e3235c7067d806a9c54cfaefca8c274588a10
 }
