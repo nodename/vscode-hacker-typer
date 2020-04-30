@@ -5,7 +5,7 @@
   "keywords": [
     "vscode"
   ],
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "nodename",
   "author": {
     "name": "Jani Eväkallio"
@@ -48,47 +48,113 @@
     "keybindings": [
       {
         "command": "nodename.vscode-hacker-typer-fork.recordMacro",
+        "when": "isMac && editorTextFocus",
         "key": "cmd+shift+t r"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.recordMacro",
+        "when": "isWindows && editorTextFocus",
+        "key": "ctrl+shift+t r"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.deleteMacro",
+        "when": "isMac",
         "key": "cmd+shift+t d"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.deleteMacro",
+        "when": "isWindows",
+        "key": "ctrl+shift+t d"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.exportMacro",
+        "when": "isMac",
         "key": "cmd+shift+t e"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.exportMacro",
+        "when": "isWindows",
+        "key": "ctrl+shift+t e"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.importMacro",
+        "when": "isMac",
         "key": "cmd+shift+t m"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.importMacro",
+        "when": "isWindows",
+        "key": "ctrl+shift+t m"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.playMacro",
+        "when": "isMac",
         "key": "cmd+shift+t p"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.playMacro",
+        "when": "isWindows",
+        "key": "ctrl+shift+t p"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.saveOrDiscardMacro",
+        "when": "isMac",
         "key": "cmd+shift+t s"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.saveOrDiscardMacro",
+        "when": "isWindows",
+        "key": "ctrl+shift+t s"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.cancelRecording",
+        "when": "isMac",
         "key": "cmd+shift+t c"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.cancelRecording",
+        "when": "isWindows",
+        "key": "ctrl+shift+t c"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.insertStop",
+        "when": "isMac",
         "key": "cmd+shift+t i"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.insertStop",
+        "when": "isWindows",
+        "key": "ctrl+shift+t i"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.undo",
+        "when": "isMac",
         "key": "cmd+shift+t u"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.undo",
+        "when": "isWindows",
+        "key": "ctrl+shift+t u"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.cancelPlaying",
+        "when": "isMac",
         "key": "cmd+shift+t x"
       },
       {
+        "command": "nodename.vscode-hacker-typer-fork.cancelPlaying",
+        "when": "isWindows",
+        "key": "ctrl+shift+t x"
+      },
+      {
         "command": "nodename.vscode-hacker-typer-fork.toggleSilence",
+        "when": "isMac",
         "key": "cmd+shift+t t"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.toggleSilence",
+        "when": "isWindows",
+        "key": "ctrl+shift+t t"
       }
     ],
     "commands": [
@@ -169,6 +235,7 @@
     "node-wav-player": "^0.1.0",
     "on-change": "^2.0.1",
     "token-types": "1.0.2",
-    "vscode-cache": "^0.3.0"
+    "vscode-cache": "^0.3.0",
+    "xstate": "^4.9.1"
   }
 }
