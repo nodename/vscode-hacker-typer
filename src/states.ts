@@ -59,8 +59,7 @@ const playStates = {
         },
         playing: {
             on: {
-                PLAY_PAUSED: 'paused',
-                REACHED_END: 'atEnd'
+                PLAY_PAUSED: 'paused'
             }
         },
         paused: {
@@ -69,9 +68,6 @@ const playStates = {
             on: {
                 RESUME_PLAY: 'playing'
             }
-        },
-        atEnd: {
-            entry: ['playEndSound', 'stopAutoPlay']
         }
     }
 };
@@ -124,8 +120,7 @@ export interface TyperSchema {
             states: {
                 startPlay: {},
                 playing: {},
-                paused: {},
-                atEnd: {}
+                paused: {}
             }
         }
     };
@@ -142,7 +137,6 @@ export type TyperEvent =
     | { type: 'RECORDING_NOT_SAVED' }
     | { type: 'RESUME_RECORDING' }
     | { type: 'PLAY_PAUSED' }
-    | { type: 'REACHED_END' }
     | { type: 'RESUME_PLAY' };
 
 export const typerMachine = Machine<TyperContext, TyperSchema, TyperEvent>(typerStates);

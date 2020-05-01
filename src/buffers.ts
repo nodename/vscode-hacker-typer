@@ -32,6 +32,7 @@ export const emptyChangeInfo = {
 
 export function isSavePoint(buffer: Buffer): buffer is SavePoint {
   return (
+    <SavePoint>buffer &&
     (<SavePoint>buffer).content !== undefined &&
     (<SavePoint>buffer).content !== null
   );
@@ -39,12 +40,18 @@ export function isSavePoint(buffer: Buffer): buffer is SavePoint {
 
 export function isStopPoint(buffer: Buffer): buffer is StopPoint {
   return (
-    (<StopPoint>buffer).stop !== undefined && (<StopPoint>buffer).stop !== null
+    <SavePoint>buffer &&
+    (<StopPoint>buffer).stop !== undefined &&
+    (<StopPoint>buffer).stop !== null
   );
 }
 
 export function isFrame(buffer: Buffer): buffer is Frame {
-  return !isSavePoint(buffer) && !isStopPoint(buffer);
+  return (
+    buffer &&
+    !isSavePoint(buffer) &&
+    !isStopPoint(buffer)
+  );
 }
 
 export function describeChanges(changeInfo: ChangeInfo): string {

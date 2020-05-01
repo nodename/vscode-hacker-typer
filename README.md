@@ -45,7 +45,6 @@ You can toggle in or out of autoplay mode at any time.
 6. WHOA HOW ARE YOU TYPING SO FAST
 7. You can cancel play with `HackerTyper: Cancel Playing` (`Cmd+Shift+T X`).
 8. Feel free to move around the file, highlight code etc. When you continue play, the next character will be inserted where you did while recording.
-9. A low sound ("boop") is played when you reach the end of your macro. You must press `ENTER` to exit playback. 
 
 ### Stop points
 
@@ -53,7 +52,9 @@ While in recording mode, execute the `HackerTyper: Insert Stop Point` command fr
 
 When you hit a stop point in play mode, either manual or autoplay, a high sound ("beep") is played. You must press `ENTER` to break out of the stop point and continue playing. All other keystrokes are ignored until you break out.
 
-You can turn off/on both beeps and boops by typing `Cmd+Shift+T T` (the `HackerTyper: Toggle Silence` command).
+If you're going to play the macro by hitting keys, you'll want to put a stop point at the end so you don't overrun the end and let your typed gibberish appear on screen.
+
+You can turn off/on beeps by typing `Cmd+Shift+T T` (the `HackerTyper: Toggle Silence` command).
 
 ## Command summary
 

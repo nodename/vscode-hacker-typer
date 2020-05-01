@@ -12,19 +12,15 @@ import * as statusBar from "./statusBar";
 
 // Data Flow: Playing a macro ////////////////////////////////////////////////////////////////////////
 //
-//     In manual mode, the onType command gets keystrokes and puts commands on the inputChannel.
-//
-//     The runInput function consumes commands from the inputChannel
-//     and forwards them to the commandChannel. It also handles the endOfInput state,
-//     which is a virtual stop point leading out of the extension's play state.
+//     In manual mode, the onType command gets keystrokes and puts commands on the commandChannel.
 //
 //     The playChannel is created from the macro's buffers.
 //
 //     The runPlay function consumes the playChannel and the commandChannel
-//     and applies buffers as edits to the document as directed by the commandChannel commands.
+//     and applies buffers from the playChannel as edits to the document as directed by the commandChannel commands.
 //
-//     In autoPlay mode, the onType command puts commands on the autoPlayControlChannel.
-//     The autoPlay function consumes these commands and outputs input commands on the inputChannel.
+//     In autoPlay mode, the onType command puts autoplay commands on the autoPlayControlChannel.
+//     The runAutoPlay function consumes these commands and outputs commands on the commandChannel.
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,13 +31,10 @@ const stopPointBreakoutChar = `\n`; // ENTER
 const startAutoPlayChar = '`';
 const pauseAutoPlayChar = '`';
 
-const inputBufferSize = 40;
-let inputChannel: Channel;
-
 let commandChannel: Channel;
 const breakoutCommand = "breakout";
 const nextCommand = "next";
-const endOfInputCommand = "end";
+//const endOfInputCommand = "end";
 
 let typeCommand: vscode.Disposable;
 let toggleSilenceCommand: vscode.Disposable;
@@ -78,13 +71,13 @@ function registerTypeCommand() {
   const onType = ({ text: userInput }: { text: string }) => {
     switch (userInput) {
       case stopPointBreakoutChar:
-        putAsync(inputChannel, breakoutCommand);
+        putAsync(commandChannel, breakoutCommand);
         break;
       case startAutoPlayChar:
         startAutoPlay();
         break;
       default:
-        putAsync(inputChannel, nextCommand);
+        putAsync(commandChannel, nextCommand);
         break;
     }
   };
@@ -130,7 +123,7 @@ const enum AutoPlayState {
   None
 }
 
-function runAutoPlay(autoPlayControlChannel: Channel, inputChannel: Channel) {
+function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
   go(function* () {
     let state: AutoPlayState = AutoPlayState.None;
     while (true) {
@@ -140,13 +133,13 @@ function runAutoPlay(autoPlayControlChannel: Channel, inputChannel: Channel) {
       } else { // timeout expired, time to do the action for my current state:
         switch (state) {
           case AutoPlayState.Play:
-            yield put(inputChannel, nextCommand);
+            yield put(commandChannel, nextCommand);
             break;
           case AutoPlayState.Pause:
             // do nothing
             break;
           case AutoPlayState.Resume:
-            yield put(inputChannel, breakoutCommand);
+            yield put(commandChannel, breakoutCommand);
             state = AutoPlayState.Play;
             break;
           case AutoPlayState.Stop:
@@ -181,42 +174,6 @@ export function stopAutoPlay() {
   setManualKeyboardMode();
 }
 
-// forwards inputChannel commands to commandChannel
-// and handles the virtual stop point at end of input
-function runInput(inputChannel: Channel, commandChannel: Channel) {
-  go(function* () {
-    while (true) {
-      let command = yield inputChannel;
-      switch (command) {
-        case nextCommand:
-        case breakoutCommand:
-          yield put(commandChannel, command);
-          break;
-        case endOfInputCommand:
-          while (true) {
-            command = yield inputChannel;
-            switch (command) {
-              case breakoutCommand:
-                commandChannel.close();
-                statusBar.show("Done playing");
-                stateService.send('DONE_PLAYING'); // This takes us out of the play state, back to the idle state
-                return;
-                break;
-              default:
-                // have tried to play beyond the terminating stop point:
-                stateService.send('REACHED_END');
-                statusBar.show('Hit RETURN to finish playing');
-                break;
-            }
-          }
-        default:
-          // error
-          break;
-      }
-    }
-  });
-}
-
 async function applySavePoint(
   savePoint: SavePoint,
   textEditor: vscode.TextEditor | undefined) {
@@ -247,24 +204,28 @@ async function applySavePoint(
 
 function runPlay(
   commandChannel: Channel,
-  playChannel: Channel,
+  buffers: Buffer[],
   textEditor: vscode.TextEditor) {
   // Events indicating that an edit has completed:
   const editChannel = chan(1);
 
+  let playChannel: Channel;
+
+  // If the first buffer is a save point, apply it immediately,
+  // before any commands arrive:
+  const firstBuffer = buffers[0];
+  if (isSavePoint(firstBuffer)) {
+    applySavePoint(<SavePoint>firstBuffer, textEditor);
+    playChannel = operations.fromColl(buffers.slice(1));
+  } else {
+    playChannel = operations.fromColl(buffers);
+  }
+
   go(function* () {
     let playBuffer: Buffer = yield playChannel;
-    // initial state, captured when the macro was recorded:
-    if (isSavePoint(playBuffer)) {
-      applySavePoint(<SavePoint>playBuffer, textEditor);
-      playBuffer = yield playChannel;
-    } else {
-      // error
-    }
+    let command = yield commandChannel;
 
-    let controlCommand = yield commandChannel;
-
-    while (controlCommand !== CLOSED) {
+    while (command !== CLOSED) {
       if (isFrame(playBuffer)) {
         if (textEditor) {
           applyFrame(playBuffer, textEditor, editChannel);
@@ -274,7 +235,7 @@ function runPlay(
           // textEditor is undefined
         }
       } else if (isStopPoint(playBuffer)) {
-        if (controlCommand === breakoutCommand) {
+        if (command === breakoutCommand) {
           stateService.send('RESUME_PLAY');
           playBuffer = yield playChannel;
         } else {
@@ -283,18 +244,17 @@ function runPlay(
           // do not get next playBuffer
         }
       } else if (isSavePoint(playBuffer)) {
-        // skip it for now
+        applySavePoint(<SavePoint>playBuffer, textEditor);
+        playBuffer = yield playChannel;
+      } else if (playBuffer === CLOSED) {
+        commandChannel.close();
       }
-
-      if (playBuffer === CLOSED) {
-        // Don't disable control capture right away; we'll handle that in doInputChannel
-        // when the user tries to keep typing.
-        yield put(inputChannel, endOfInputCommand);
-      }
-      controlCommand = yield commandChannel;
+      command = yield commandChannel;
     }
     // commandChannel closed:
     console.log("Command channel closed");
+    statusBar.show("Done playing");
+    stateService.send('DONE_PLAYING'); // This takes us out of the play state, back to the idle state
     return;
   });
 }
@@ -322,20 +282,13 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
     }
 
     // Commands provided by the onType command or by autoPlay:
-    inputChannel = chan(inputBufferSize);
-
-    // Commands provided to runPlay:
     commandChannel = chan(1);
 
     autoPlayControlChannel = chan(1);
 
-    // Buffers from the macro, to be applied in sequence to the document:
-    const playChannel = operations.fromColl(macro.buffers);
-
     // goroutines:
-    runAutoPlay(autoPlayControlChannel, inputChannel);
-    runInput(inputChannel, commandChannel);
-    runPlay(commandChannel, playChannel, <vscode.TextEditor>textEditor);
+    runAutoPlay(autoPlayControlChannel, commandChannel);
+    runPlay(commandChannel, macro.buffers, <vscode.TextEditor>textEditor);
 
     statusBar.show(`${macro.name}`);
   });
