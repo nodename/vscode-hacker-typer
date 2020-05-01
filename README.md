@@ -59,6 +59,8 @@ You can turn off/on both beeps and boops by typing `Cmd+Shift+T T` (the `HackerT
 
 ### Commands available in the IDLE state
 
+For Windows, substitute `Ctrl` for `Cmd`.
+
 | Command | Key Binding |
 |-----------|:-----------:|
 | `HackerTyper: Record Macro` | Cmd+Shift+T R |
