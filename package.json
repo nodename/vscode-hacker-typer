@@ -226,7 +226,8 @@
     "@types/mocha": "^2.2.42",
     "@types/node": "^8.10.53",
     "tslint": "^5.20.1",
-    "typescript": "^3.6.2"
+    "typescript": "^3.6.2",
+    "vscode": "1.1.37"
   },
   "dependencies": {
     "xstate": "4.9.1",
@@ -236,8 +237,7 @@
     "node-wav-player": "^0.1.0",
     "on-change": "^2.0.1",
     "token-types": "1.0.2",
-    "vscode-cache": "^0.3.0",
-    "vscode": "1.1.37"
+    "vscode-cache": "^0.3.0"
   },
   "WARNING": "All occurrences of strtok3/lib/type in music-metadata source files must be changed to strtok3/lib/types"
 }
