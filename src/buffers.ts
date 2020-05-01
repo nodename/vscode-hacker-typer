@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import { Edit, toEdit, kindOf } from "./edit";
 
-export type StartingPoint = {
+export type SavePoint = {
   content: string;
   language: string;
   selections: vscode.Selection[];
@@ -24,16 +24,16 @@ export type Frame = {
   selections: vscode.Selection[];
 };
 
-export type Buffer = StartingPoint | StopPoint | Frame;
+export type Buffer = SavePoint | StopPoint | Frame;
 
 export const emptyChangeInfo = {
   changes: []
 };
 
-export function isStartingPoint(buffer: Buffer): buffer is StartingPoint {
+export function isSavePoint(buffer: Buffer): buffer is SavePoint {
   return (
-    (<StartingPoint>buffer).content !== undefined &&
-    (<StartingPoint>buffer).content !== null
+    (<SavePoint>buffer).content !== undefined &&
+    (<SavePoint>buffer).content !== null
   );
 }
 
@@ -44,7 +44,7 @@ export function isStopPoint(buffer: Buffer): buffer is StopPoint {
 }
 
 export function isFrame(buffer: Buffer): buffer is Frame {
-  return !isStartingPoint(buffer) && !isStopPoint(buffer);
+  return !isSavePoint(buffer) && !isStopPoint(buffer);
 }
 
 export function describeChanges(changeInfo: ChangeInfo): string {
@@ -111,10 +111,10 @@ function reverseChangeInfo(
 
 export function reverseFrame(
   frame: Frame,
-  previousFrameOrStartingPoint: Frame | StartingPoint,
+  previousFrameOrSavePoint: Frame | SavePoint,
   document: vscode.TextDocument): Frame {
   return {
     changeInfo: reverseChangeInfo(frame.changeInfo, document),
-    selections: previousFrameOrStartingPoint.selections
+    selections: previousFrameOrSavePoint.selections
   };
 }

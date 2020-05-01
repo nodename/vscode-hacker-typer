@@ -1,7 +1,7 @@
 "use strict";
 
 import * as vscode from "vscode";
-import { Buffer, StartingPoint, isStartingPoint, isFrame, isStopPoint } from "./buffers";
+import { Buffer, SavePoint, isSavePoint, isFrame, isStopPoint } from "./buffers";
 import Storage from "./storage";
 import { go, chan, put, putAsync, Channel, CLOSED, operations, timeout, alts } from "js-csp";
 import { replaceAllContent, revealSelections, applyFrame } from "./edit";
@@ -205,6 +205,7 @@ function runInput(inputChannel: Channel, commandChannel: Channel) {
               default:
                 // have tried to play beyond the terminating stop point:
                 stateService.send('REACHED_END');
+                statusBar.show('Hit RETURN to finish playing');
                 break;
             }
           }
@@ -216,28 +217,28 @@ function runInput(inputChannel: Channel, commandChannel: Channel) {
   });
 }
 
-async function setStartingPoint(
-  startingPoint: StartingPoint,
+async function applySavePoint(
+  savePoint: SavePoint,
   textEditor: vscode.TextEditor | undefined) {
   let editor = textEditor;
   // if no open text editor, open one
   if (!editor) {
     statusBar.show("Opening new window");
     const document = await vscode.workspace.openTextDocument({
-      language: startingPoint.language,
-      content: startingPoint.content
+      language: savePoint.language,
+      content: savePoint.content
     });
 
     editor = await vscode.window.showTextDocument(document);
   }
-  await replaceAllContent(editor, startingPoint.content);
+  await replaceAllContent(editor, savePoint.content);
 
   if (editor) {
-    revealSelections(startingPoint.selections, editor);
+    revealSelections(savePoint.selections, editor);
 
     // language should always be defined, guard statement here
     // to support old recorded frames before language bit was added
-    if (startingPoint.language) {
+    if (savePoint.language) {
       // @TODO set editor language once the API becomes available:
       // https://github.com/Microsoft/vscode/issues/1800
     }
@@ -253,8 +254,9 @@ function runPlay(
 
   go(function* () {
     let playBuffer: Buffer = yield playChannel;
-    if (isStartingPoint(playBuffer)) {
-      setStartingPoint(<StartingPoint>playBuffer, textEditor);
+    // initial state, captured when the macro was recorded:
+    if (isSavePoint(playBuffer)) {
+      applySavePoint(<SavePoint>playBuffer, textEditor);
       playBuffer = yield playChannel;
     } else {
       // error
@@ -280,6 +282,8 @@ function runPlay(
           // make no update to the document
           // do not get next playBuffer
         }
+      } else if (isSavePoint(playBuffer)) {
+        // skip it for now
       }
 
       if (playBuffer === CLOSED) {

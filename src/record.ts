@@ -285,13 +285,13 @@ function runBuffers() {
           bufferList.pop();
         } else {
           let frameIndex = bufferList.length - 2;
-          let previousFrameOrStartingPoint = bufferList[frameIndex];
-          while (isStopPoint(previousFrameOrStartingPoint)) {
+          let previousFrameOrSavePoint = bufferList[frameIndex];
+          while (isStopPoint(previousFrameOrSavePoint)) {
             frameIndex -= 1;
-            previousFrameOrStartingPoint = bufferList[frameIndex];
+            previousFrameOrSavePoint = bufferList[frameIndex];
           }
-          if (previousFrameOrStartingPoint) {
-            const undoFrame: Frame = reverseFrame(<Frame>lastBuffer, previousFrameOrStartingPoint, currentActiveDoc);
+          if (previousFrameOrSavePoint) {
+            const undoFrame: Frame = reverseFrame(<Frame>lastBuffer, previousFrameOrSavePoint, currentActiveDoc);
             if (!textEditor) {
               // error
             } else {
@@ -355,7 +355,7 @@ function startNewRecording() {
   textEditor = vscode.window.activeTextEditor;
   if (textEditor) {
     initChannels();
-    insertStartingPoint(textEditor);
+    insertSavePoint(textEditor);
     startRecording(textEditor);
   }
 }
@@ -368,14 +368,14 @@ export function resumeRecording() {
   }
 }
 
-function insertStartingPoint(textEditor: vscode.TextEditor) {
-  const initialDocumentContent = textEditor.document.getText();
+function insertSavePoint(textEditor: vscode.TextEditor) {
+  const documentContent = textEditor.document.getText();
   const language = textEditor.document.languageId;
   const selections = textEditor.selections;
 
-  //console.log(`initial content: "${initialDocumentContent}"`);
+  //console.log(`content: "${documentContent}"`);
 
-  putAsync(bufferChannel, { content: initialDocumentContent, language: language, selections: selections });
+  putAsync(bufferChannel, { content: documentContent, language: language, selections: selections });
 }
 
 export function saveRecording() {
@@ -394,6 +394,11 @@ async function doSaveRecording() {
   if (!storage) {
     showError("Cannot save macro!");
     return false;
+  }
+
+  const textEditor = vscode.window.activeTextEditor;
+  if (textEditor) {
+    insertSavePoint(textEditor);
   }
 
   let name = await vscode.window.showInputBox({
