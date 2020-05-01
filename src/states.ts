@@ -1,13 +1,20 @@
 "use strict";
 
 import { Machine } from "xstate";
-import { TyperContext } from "./TyperContext";
+export interface TyperContext { }
+
+type TyperStateName = 'idle' | 'record' | 'play' | undefined;
+const idle: TyperStateName = 'idle';
+type RecordStateName = 'startRecord' | 'recording' | 'saving' | 'saved' | 'resumed' | undefined;
+const startRecord: RecordStateName = 'startRecord';
+type PlayStateName = 'startPlay' | 'playing' | 'paused' | 'atEnd' | undefined;
+const startPlay: PlayStateName = 'startPlay';
 
 const recordStates = {
     strict: true,
-    initial: 'start',
+    initial: startRecord,
     states: {
-        start: {
+        startRecord: {
             entry: ['disableIdling', 'enableRecording', 'startRecording'],
             on: {
                 '': 'recording'
@@ -42,9 +49,9 @@ const recordStates = {
 
 const playStates = {
     strict: true,
-    initial: 'start',
+    initial: startPlay,
     states: {
-        start: {
+        startPlay: {
             entry: ['disableIdling', 'enablePlaying', 'startPlaying'],
             on: {
                 '': 'playing'
@@ -72,7 +79,7 @@ const playStates = {
 const typerStates = {
     id: 'typer',
     strict: true,
-    initial: 'idle',
+    initial: idle,
     states: {
         idle: {
             entry: 'enableIdling',
@@ -101,4 +108,41 @@ const typerStates = {
     }
 };
 
-export const typerMachine = Machine<TyperContext>(typerStates);
+export interface TyperSchema {
+    states: {
+        idle: {},
+        record: {
+            states: {
+                startRecord: {},
+                recording: {},
+                saving: {},
+                saved: {},
+                resumed: {}
+            }
+        },
+        play: {
+            states: {
+                startPlay: {},
+                playing: {},
+                paused: {},
+                atEnd: {}
+            }
+        }
+    };
+}
+
+export type TyperEvent = 
+    | { type: 'RECORD' }
+    | { type: 'PLAY' }
+    | { type: 'DONE_RECORDING' }
+    | { type: 'TOGGLE_SILENCE' }
+    | { type: 'DONE_PLAYING' }
+    | { type: 'SAVE_RECORDING' }
+    | { type: 'RECORDING_SAVED' }
+    | { type: 'RECORDING_NOT_SAVED' }
+    | { type: 'RESUME_RECORDING' }
+    | { type: 'PLAY_PAUSED' }
+    | { type: 'REACHED_END' }
+    | { type: 'RESUME_PLAY' };
+
+export const typerMachine = Machine<TyperContext, TyperSchema, TyperEvent>(typerStates);

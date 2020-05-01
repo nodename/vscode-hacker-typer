@@ -7,7 +7,7 @@ import {
 } from "./buffers";
 import Storage from "./storage";
 import { Interpreter } from "xstate";
-import { TyperContext } from "./TyperContext";
+import { TyperContext, TyperSchema, TyperEvent } from "./states";
 import * as statusBar from "./statusBar";
 import showError from "./showError";
 import { applyFrame } from "./edit";
@@ -110,12 +110,12 @@ export function disposeRecordingHooks(context: vscode.ExtensionContext) {
   }
 }
 
-let stateService: Interpreter<TyperContext>;
+let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
 let storage: Storage | null = null;
 let bufferList: Buffer[] = [];
 
 // on initial entry:
-export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext>) {
+export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext, TyperSchema, TyperEvent>) {
   stateService = service;
   console.log("record.start");
   storage = Storage.getInstance(context);

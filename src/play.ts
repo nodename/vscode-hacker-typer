@@ -6,7 +6,7 @@ import Storage from "./storage";
 import { go, chan, put, putAsync, Channel, CLOSED, operations, timeout, alts } from "js-csp";
 import { replaceAllContent, revealSelections, applyFrame } from "./edit";
 import { Interpreter } from "xstate";
-import { TyperContext } from "./TyperContext";
+import { TyperContext, TyperSchema, TyperEvent } from "./states";
 import * as statusBar from "./statusBar";
 
 
@@ -29,7 +29,7 @@ import * as statusBar from "./statusBar";
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-let stateService: Interpreter<TyperContext>;
+let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
 
 const stopPointBreakoutChar = `\n`; // ENTER
 const startAutoPlayChar = '`';
@@ -304,7 +304,7 @@ function toggleSilence() {
   stateService.send('TOGGLE_SILENCE');
 }
 
-export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext>) {
+export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext, TyperSchema, TyperEvent>) {
   stateService = service;
   const storage = Storage.getInstance(context);
   storage.userChooseMacro((macro) => {

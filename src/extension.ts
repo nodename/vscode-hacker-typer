@@ -6,11 +6,10 @@ import * as recording from "./record";
 import * as play from "./play";
 import * as sound from "./sound";
 import { interpret, Interpreter } from "xstate";
-import { TyperContext } from "./TyperContext";
-import { typerMachine } from "./states";
+import { TyperContext, TyperSchema,TyperEvent, typerMachine } from "./states";
 import * as statusBar from "./statusBar";
 
-export let stateService: Interpreter<TyperContext>;
+export let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
 
 type FnType = (context: vscode.ExtensionContext) => void;
 type FnDict = Record<string, FnType>;
@@ -44,8 +43,15 @@ export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "vscode-hacker-typer-fork" active');
 
   statusBar.init();
+
+  // Argument of type 'StateMachine<TyperContext, any, AnyEventObject, any>' is not assignable 
+  // to parameter of type 'StateMachine<TyperContext, any, EventObject>'.
+
+  // Type 'StateMachine<TyperContext, any, AnyEventObject, any>' is missing 
+  // the following properties from type 'StateMachine<TyperContext, any, EventObject>': 
+  // tree, getStateTree, evaluateGuard, ensureValidPaths, and 2 more.
   
-  stateService = interpret<TyperContext>(typerMachine, {
+  stateService = interpret<TyperContext, TyperSchema, TyperEvent>(typerMachine, {
     execute: false // I'm going to handle the execution
     // because I don't want to specify concrete action implementations in the statechart itself.
     // The implementations in turn know nothing about the state machine other than
