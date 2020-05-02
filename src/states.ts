@@ -17,7 +17,10 @@ const recordStates = {
         startRecord: {
             entry: ['disableIdling', 'enableRecording', 'startRecording'],
             on: {
-                '': 'recording'
+                '': {
+                    target: 'recording',
+                    actions: ['showRecording']
+                }
             }
         },
         recording: {
@@ -26,10 +29,13 @@ const recordStates = {
             }
         },
         saving: {
-            entry: 'saveRecording',
+            entry: ['showSaving', 'saveRecording'],
             on: {
                 RECORDING_SAVED: 'saved',
-                RECORDING_NOT_SAVED: 'recording'
+                RECORDING_NOT_SAVED: {
+                    target: 'recording',
+                    actions: ['showRecordingNotSaved']
+                }
             }
         },
         saved: {
@@ -87,7 +93,18 @@ const typerStates = {
         record: {
             exit: 'disableRecording',
             on: {
-                DONE_RECORDING: 'idle'
+                DONE_RECORDING: {
+                    target: 'idle',
+                    actions: ['showDoneRecording']
+                },
+                CANCELLED_RECORDING: {
+                    target: 'idle',
+                    actions: ['showCancelledRecording']
+                },
+                DISCARDED_RECORDING: {
+                    target: 'idle',
+                    actions: ['showDiscardedRecording']
+                }
             },
             ...recordStates
         },
@@ -130,6 +147,8 @@ export type TyperEvent =
     | { type: 'RECORD' }
     | { type: 'PLAY' }
     | { type: 'DONE_RECORDING' }
+    | { type: 'CANCELLED_RECORDING' }
+    | { type: 'DISCARDED_RECORDING' }
     | { type: 'TOGGLE_SILENCE' }
     | { type: 'DONE_PLAYING' }
     | { type: 'SAVE_RECORDING' }

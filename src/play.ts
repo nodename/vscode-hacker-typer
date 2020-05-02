@@ -244,7 +244,8 @@ function runPlay(
           // do not get next playBuffer
         }
       } else if (isSavePoint(playBuffer)) {
-        applySavePoint(<SavePoint>playBuffer, textEditor);
+        // just skip it; the plan is to have a save point at the end
+        // that I can use to skip actually playing the buffers
         playBuffer = yield playChannel;
       } else if (playBuffer === CLOSED) {
         commandChannel.close();

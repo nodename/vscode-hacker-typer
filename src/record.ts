@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import { go, Channel, chan, alts, put, putAsync, CLOSED } from "js-csp";
 import {
-  Buffer, describeSelections, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo
+  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo
 } from "./buffers";
 import Storage from "./storage";
 import { Interpreter } from "xstate";
@@ -48,7 +48,6 @@ export function continueOrEndRecording() {
             bufferList.length = 0;
             // transition out of record state:
             stateService.send('DONE_RECORDING');
-            statusBar.show("Done recording");
             break;
         }
       }
@@ -60,7 +59,6 @@ function registerRecordingCommands() {
     "nodename.vscode-hacker-typer-fork.insertStop",
     () => {
       insertStop(null);
-      statusBar.show("Inserted STOP");
     }
   );
 
@@ -83,8 +81,7 @@ function registerRecordingCommands() {
     "nodename.vscode-hacker-typer-fork.cancelRecording",
     () => {
       bufferList.length = 0;
-      stateService.send('DONE_RECORDING');
-      statusBar.show("Recording cancelled");
+      stateService.send('CANCELLED_RECORDING');
     }
   );
 
@@ -141,7 +138,7 @@ async function resumeOrNewRecording() {
   }
   switch (selection) {
     case NEW:
-      stateService.send('SAVE_RECORDING');
+      stateService.send('SAVE_RECORDING'); // TODO save simple
       startNewRecording();
       break;
     case CONTINUE:
@@ -201,12 +198,11 @@ function handleSelectionChange(event: vscode.TextEditorSelectionChangeEvent) {
     return;
   }
 
-  statusBar.show("Recording");
   const selections = event.selections || [];
-  console.log("");
-  console.log(`handleSelectionChange:
-    selections:
-        ${describeSelections(selections)}`);
+  // console.log("");
+  // console.log(`handleSelectionChange:
+  //   selections:
+  //       ${describeSelections(selections)}`);
   putAsync(selectionChangeChannel, selections);
 }
 
@@ -317,14 +313,18 @@ function runBuffers() {
                   break;
                 case 'discard':
                   bufferList.length = 0;
-                  statusBar.show('Discarded recording');
-                  stateService.send('DONE_RECORDING');
+                  stateService.send('DISCARDED_RECORDING');
                   break;
               }
             });
           return;
         } else {
           // It's a buffer:
+          if (isStopPoint(buffer)) {
+            statusBar.show('Inserted STOP');
+          } else {
+            statusBar.show('');
+          }
           bufferList.push(buffer);
         }
       }
@@ -345,7 +345,6 @@ function startRecording(currentOpenEditor: vscode.TextEditor) {
   // start watching the currently open doc
   // TODO if not new recording, check if doc has changed
   currentActiveDoc = currentOpenEditor.document;
-  statusBar.show("");
 
   runChanges();
   runBuffers();
@@ -386,7 +385,6 @@ export function saveRecording() {
 }
 
 async function doSaveRecording() {
-  statusBar.show('Saving');
   if (bufferList.length < 2) {
     showError("Cannot save macro with no content.");
     return false;
@@ -397,7 +395,7 @@ async function doSaveRecording() {
   }
 
   const textEditor = vscode.window.activeTextEditor;
-  if (textEditor) {
+  if (textEditor) { 
     insertSavePoint(textEditor);
   }
 
@@ -420,3 +418,4 @@ async function doSaveRecording() {
     return false;
   }
 }
+
