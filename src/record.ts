@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import { go, Channel, chan, alts, put, putAsync, CLOSED } from "js-csp";
 import {
-  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo
+  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo, SavePoint
 } from "./buffers";
 import Storage from "./storage";
 import { Interpreter } from "xstate";
@@ -368,13 +368,14 @@ export function resumeRecording() {
 }
 
 function insertSavePoint(textEditor: vscode.TextEditor) {
+  putAsync(bufferChannel, createSavePoint(textEditor));
+}
+
+function createSavePoint(textEditor: vscode.TextEditor): SavePoint {
   const documentContent = textEditor.document.getText();
   const language = textEditor.document.languageId;
   const selections = textEditor.selections;
-
-  //console.log(`content: "${documentContent}"`);
-
-  putAsync(bufferChannel, { content: documentContent, language: language, selections: selections });
+  return { content: documentContent, language: language, selections: selections };
 }
 
 export function saveRecording() {
@@ -394,9 +395,10 @@ async function doSaveRecording() {
     return false;
   }
 
+  // Add a save point at the end:
   const textEditor = vscode.window.activeTextEditor;
   if (textEditor) { 
-    insertSavePoint(textEditor);
+    bufferList.push(createSavePoint(textEditor));
   }
 
   let name = await vscode.window.showInputBox({
