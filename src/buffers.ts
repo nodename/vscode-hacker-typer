@@ -32,7 +32,7 @@ export const emptyChangeInfo = {
 
 export function isSavePoint(buffer: Buffer): buffer is SavePoint {
   return (
-    <SavePoint>buffer &&
+    buffer &&
     (<SavePoint>buffer).content !== undefined &&
     (<SavePoint>buffer).content !== null
   );
@@ -40,7 +40,7 @@ export function isSavePoint(buffer: Buffer): buffer is SavePoint {
 
 export function isStopPoint(buffer: Buffer): buffer is StopPoint {
   return (
-    <SavePoint>buffer &&
+    buffer &&
     (<StopPoint>buffer).stop !== undefined &&
     (<StopPoint>buffer).stop !== null
   );
