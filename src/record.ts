@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import { go, Channel, chan, alts, put, putAsync, CLOSED } from "js-csp";
 import {
-  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo, SavePoint
+  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo, SavePoint, ChangeInfo
 } from "./buffers";
 import Storage from "./storage";
 import { Interpreter } from "xstate";
@@ -248,7 +248,7 @@ function runChanges() {
         // I assume a documentChange is always followed by a selectionChange:
         selections = yield selectionChangeChannel;
         console.log("got both");
-      } else {
+      } else { // selection change
         // But a selectionChange may arrive with no preceding documentChange
         // if the user made a selection manually:
         changeInfo = emptyChangeInfo;
@@ -260,10 +260,28 @@ function runChanges() {
         bufferChannel.close();
         return;
       }
-      yield put(bufferChannel,
-        { changeInfo: changeInfo, selections: selections });
+      for (const frame of makeFrames(changeInfo, selections)) {
+        yield put(bufferChannel,
+          frame);
+      }
     }
   });
+}
+
+const map = (f: any, coll: any[]) => coll.map(f);
+
+// We actually can't expect to play back a Frame with more than one change,
+// so let's split it into multiple Frames:
+function makeFrames(changeInfo: ChangeInfo, selections: vscode.Selection[]): Frame[] {
+  if (changeInfo.changes.length > 1) {
+    const f = (change: any) => {
+      const changeInfo = { changes: [change] };
+      return { changeInfo: changeInfo, selections: selections };
+    };
+    return <Frame[]>map(f, changeInfo.changes);
+  } else {
+    return [<Frame>{ changeInfo: changeInfo, selections: selections }];
+  }
 }
 
 function runBuffers() {
