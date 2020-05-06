@@ -41,7 +41,6 @@ let typeCommand: vscode.Disposable;
 let toggleSilenceCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
 
-const autoPlayInterval = 60;
 let autoPlayControlChannel: Channel;
 
 export function registerPlayingCommands() {
@@ -73,18 +72,31 @@ function registerTypeCommand() {
   // keyboard is used to simulate typing the macro,
   // to break out of stop points,
   // and to start autoplay
+
+  const manualTypeKBCommands = new Map([
+    [stopPointBreakoutChar, () => putAsync(commandChannel, breakoutCommand)],
+    [startAutoPlayChar, startAutoPlay]
+  ]);
+
   const onType = ({ text: userInput }: { text: string }) => {
-    switch (userInput) {
-      case stopPointBreakoutChar:
-        putAsync(commandChannel, breakoutCommand);
-        break;
-      case startAutoPlayChar:
-        startAutoPlay();
-        break;
-      default:
-        putAsync(commandChannel, nextCommand);
-        break;
+    const f = manualTypeKBCommands.get(userInput);
+    if (f) {
+      f();
+    } else { // any other key: the default action
+      putAsync(commandChannel, nextCommand);
     }
+
+    // switch (userInput) {
+    //   case stopPointBreakoutChar:
+    //     putAsync(commandChannel, breakoutCommand);
+    //     break;
+    //   case startAutoPlayChar:
+    //     startAutoPlay();
+    //     break;
+    //   default:
+    //     putAsync(commandChannel, nextCommand);
+    //     break;
+    // }
   };
 
   if (typeCommand) {
@@ -96,17 +108,28 @@ function registerTypeCommand() {
 
 function registerAutoTypeCommand() {
   // keyboard is used only for autoPlay commands
+
+  const autoTypeKBCommands = new Map([
+    [stopPointBreakoutChar, resumeAutoPlay],
+    [pauseAutoPlayChar, pauseAutoPlay]
+  ]);
+
   const onType = ({ text: userInput }: { text: string }) => {
-    switch (userInput) {
-      case stopPointBreakoutChar:
-        resumeAutoPlay();
-        break;
-      case pauseAutoPlayChar:
-        pauseAutoPlay();
-        break;
-      default:
-        break;
+    const f = autoTypeKBCommands.get(userInput);
+    if (f) {
+      f();
     }
+
+    // switch (userInput) {
+    //   case stopPointBreakoutChar:
+    //     resumeAutoPlay();
+    //     break;
+    //   case pauseAutoPlayChar:
+    //     pauseAutoPlay();
+    //     break;
+    //   default:
+    //     break;
+    // }
   };
 
   if (typeCommand) {
@@ -121,21 +144,21 @@ const enum AutoPlayState {
   Play,
   Pause,
   Resume,
-  Stop,
-  None
+  Stop
 }
 
-let autoPlaying = false;
+let autoPlayInterval = () => 60;
+const setAutoPlayInterval = (ms: number) => {
+  autoPlayInterval = () => ms;
+};
+
 function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
   go(function* () {
-    let state: AutoPlayState = AutoPlayState.None;
+    let state: AutoPlayState = AutoPlayState.Pause;
     while (true) {
-      let result = yield alts([autoPlayControlChannel, timeout(autoPlayInterval)], { priority: true });
+      let result = yield alts([autoPlayControlChannel, timeout(autoPlayInterval())], { priority: true });
       if (result.channel === autoPlayControlChannel) {
         state = result.value;
-        if (state === AutoPlayState.Play) {
-          autoPlaying = true;
-        }
       } else { // timeout expired, time to do the action for my current state:
         switch (state) {
           case AutoPlayState.Play:
@@ -165,17 +188,17 @@ function startAutoPlay() {
 }
 
 export function pauseAutoPlay() {
-  if (autoPlaying) {
+  //if (autoPlaying) {
     putAsync(autoPlayControlChannel, AutoPlayState.Pause);
     setManualKeyboardMode();
-  }
+  //}
 }
 
 export function resumeAutoPlay() {
-  if (autoPlaying) {
+  //if (autoPlaying) {
     setAutoKeyboardMode();
     putAsync(autoPlayControlChannel, AutoPlayState.Resume);
-  }
+  //}
 }
 
 // Do this when leaving the play state
