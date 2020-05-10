@@ -6,7 +6,7 @@ import * as recording from "./record";
 import * as play from "./play";
 import * as sound from "./sound";
 import { interpret, Interpreter } from "xstate";
-import { TyperContext, TyperSchema,TyperEvent, typerMachine } from "./states";
+import { TyperContext, TyperSchema, TyperEvent, typerMachine } from "./states";
 import * as statusBar from "./statusBar";
 
 export let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
@@ -34,6 +34,7 @@ const actionImplementations: FnDict = {
   startPlaying: startPlaying,
   playPauseSound: sound.playPauseSound,
   playEndSound: sound.playEndSound,
+  startAutoPlay: play.startAutoPlay,
   pauseAutoPlay: play.pauseAutoPlay,
   resumeAutoPlay: play.resumeAutoPlay,
   stopAutoPlay: play.stopAutoPlay,
@@ -49,13 +50,6 @@ export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "vscode-hacker-typer-fork" active');
 
   statusBar.init();
-
-  // Argument of type 'StateMachine<TyperContext, any, AnyEventObject, any>' is not assignable 
-  // to parameter of type 'StateMachine<TyperContext, any, EventObject>'.
-
-  // Type 'StateMachine<TyperContext, any, AnyEventObject, any>' is missing 
-  // the following properties from type 'StateMachine<TyperContext, any, EventObject>': 
-  // tree, getStateTree, evaluateGuard, ensureValidPaths, and 2 more.
   
   stateService = interpret<TyperContext, TyperSchema, TyperEvent>(typerMachine, {
     execute: false // I'm going to handle the execution
@@ -63,18 +57,25 @@ export function activate(context: vscode.ExtensionContext) {
     // The implementations in turn know nothing about the state machine other than
     // the events they send to it.
   });
+
+  
   stateService.onTransition(state => {
-    function valueName(state: any) {
-      if (state.value instanceof Object) {
-        // This works for non-parallel machine with one-level deep submachine
-        let key = Object.keys(state.value)[0];
-        return `${key}: ${state.value[key]}`;
+    function valueName(value: any) {
+      if (value instanceof Object) {
+        let txt = '';
+        let first = true;
+        for (let prop in value) {
+          txt += `${first ? '' : ', '}`;
+          txt += valueName(value[prop]);
+          first = false;
+        }
+        return txt;
       } else {
-        return state.value;
+        return value;
       }
     }
 
-    const stateName = valueName(state);
+    const stateName = valueName(state.value);
     console.log(`Transition to ${stateName} state`);
     statusBar.setAppState(stateName);
     state.actions.forEach(action => {
