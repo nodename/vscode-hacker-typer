@@ -261,8 +261,7 @@ function runChanges() {
         return;
       }
       for (const frame of makeFrames(changeInfo, selections)) {
-        yield put(bufferChannel,
-          frame);
+        yield put(bufferChannel, frame);
       }
     }
   });
@@ -272,6 +271,7 @@ const map = (f: any, coll: any[]) => coll.map(f);
 
 // We actually can't expect to play back a Frame with more than one change,
 // so let's split it into multiple Frames:
+// (maybe we should play it back faster since it's one edit)
 function makeFrames(changeInfo: ChangeInfo, selections: vscode.Selection[]): Frame[] {
   if (changeInfo.changes.length > 1) {
     const f = (change: any) => {
