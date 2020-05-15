@@ -1,7 +1,7 @@
 "use strict";
 
 import * as vscode from "vscode";
-import { Buffer, SavePoint, isSavePoint, isFrame, isStopPoint } from "./buffers";
+import { Buffer, SavePoint, isSavePoint, isStopPoint, typeOf, Frame } from "./buffers";
 import Storage from "./storage";
 import { go, chan, put, putAsync, Channel, CLOSED, operations, timeout, alts } from "js-csp";
 import { replaceAllContent, revealSelections, applyFrame } from "./edit";
@@ -29,19 +29,18 @@ import * as statusBar from "./statusBar";
 let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
 
 const stopPointBreakoutChar = `\n`; // ENTER
-const startAutoPlayChar = '`';
-const pauseAutoPlayChar = '`';
+const toggleAutoPlayChar = '`';
 
+// Commands provided by the onType command or by autoPlay:
 let commandChannel: Channel;
 const breakoutCommand = "breakout";
 const nextCommand = "next";
-//const endOfInputCommand = "end";
 
 let typeCommand: vscode.Disposable;
 let toggleSilenceCommand: vscode.Disposable;
 let cancelPlayingCommand: vscode.Disposable;
 
-let autoPlayControlChannel: Channel;
+const autoPlayControlChannel: Channel = chan(1);
 
 export function registerPlayingCommands() {
   setManualKeyboardMode();
@@ -65,6 +64,11 @@ function setAutoKeyboardMode() {
   typeCommand = registerAutoTypeCommand();
 }
 
+const keyboardCommands = new Map([
+  [stopPointBreakoutChar, () => putAsync(commandChannel, breakoutCommand)],
+  [toggleAutoPlayChar, () => stateService.send('TOGGLE_AUTOPLAY')]
+]);
+
 function registerTypeCommand() {
   // "type" is a built-in command, so we don't configure a keyboard shortcut.
   // We install the  handler:
@@ -73,30 +77,13 @@ function registerTypeCommand() {
   // to break out of stop points,
   // and to start autoplay
 
-  const manualTypeKBCommands = new Map([
-    [stopPointBreakoutChar, () => putAsync(commandChannel, breakoutCommand)],
-    [startAutoPlayChar, startAutoPlay]
-  ]);
-
   const onType = ({ text: userInput }: { text: string }) => {
-    const f = manualTypeKBCommands.get(userInput);
+    const f = keyboardCommands.get(userInput);
     if (f) {
       f();
-    } else { // any other key: the default action
+    } else { // any other string: perform the default action
       putAsync(commandChannel, nextCommand);
     }
-
-    // switch (userInput) {
-    //   case stopPointBreakoutChar:
-    //     putAsync(commandChannel, breakoutCommand);
-    //     break;
-    //   case startAutoPlayChar:
-    //     startAutoPlay();
-    //     break;
-    //   default:
-    //     putAsync(commandChannel, nextCommand);
-    //     break;
-    // }
   };
 
   if (typeCommand) {
@@ -107,29 +94,14 @@ function registerTypeCommand() {
 }
 
 function registerAutoTypeCommand() {
-  // keyboard is used only for autoPlay commands
-
-  const autoTypeKBCommands = new Map([
-    [stopPointBreakoutChar, resumeAutoPlay],
-    [pauseAutoPlayChar, pauseAutoPlay]
-  ]);
+  // keyboard is used only to break out of stop points
+  // and to pause autoplay
 
   const onType = ({ text: userInput }: { text: string }) => {
-    const f = autoTypeKBCommands.get(userInput);
+    const f = keyboardCommands.get(userInput);
     if (f) {
       f();
     }
-
-    // switch (userInput) {
-    //   case stopPointBreakoutChar:
-    //     resumeAutoPlay();
-    //     break;
-    //   case pauseAutoPlayChar:
-    //     pauseAutoPlay();
-    //     break;
-    //   default:
-    //     break;
-    // }
   };
 
   if (typeCommand) {
@@ -139,18 +111,16 @@ function registerAutoTypeCommand() {
   return vscode.commands.registerCommand("type", onType);
 }
 
-// This should go in the statechart:
 const enum AutoPlayState {
   Play,
   Pause,
-  Resume,
-  Stop
+  Quit
 }
 
 let autoPlayInterval = () => 60;
-const setAutoPlayInterval = (ms: number) => {
-  autoPlayInterval = () => ms;
-};
+// const setAutoPlayInterval = (ms: number) => {
+//   autoPlayInterval = () => ms;
+// };
 
 function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
   go(function* () {
@@ -159,6 +129,9 @@ function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
       let result = yield alts([autoPlayControlChannel, timeout(autoPlayInterval())], { priority: true });
       if (result.channel === autoPlayControlChannel) {
         state = result.value;
+        if (state === AutoPlayState.Quit) {
+          return;
+        }
       } else { // timeout expired, time to do the action for my current state:
         switch (state) {
           case AutoPlayState.Play:
@@ -166,13 +139,6 @@ function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
             break;
           case AutoPlayState.Pause:
             // do nothing
-            break;
-          case AutoPlayState.Resume:
-            yield put(commandChannel, breakoutCommand);
-            state = AutoPlayState.Play;
-            break;
-          case AutoPlayState.Stop:
-            return; // no more autoplay until we re-enter play state
             break;
           default:
             break;
@@ -182,28 +148,24 @@ function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
   });
 }
 
-function startAutoPlay() {
+export function startAutoPlay() {
   setAutoKeyboardMode();
   putAsync(autoPlayControlChannel, AutoPlayState.Play);
 }
 
 export function pauseAutoPlay() {
-  //if (autoPlaying) {
-    putAsync(autoPlayControlChannel, AutoPlayState.Pause);
-    setManualKeyboardMode();
-  //}
+  putAsync(autoPlayControlChannel, AutoPlayState.Pause);
+  setManualKeyboardMode();
 }
 
 export function resumeAutoPlay() {
-  //if (autoPlaying) {
-    setAutoKeyboardMode();
-    putAsync(autoPlayControlChannel, AutoPlayState.Resume);
-  //}
+  setAutoKeyboardMode();
+  putAsync(commandChannel, breakoutCommand);
 }
 
 // Do this when leaving the play state
-export function stopAutoPlay() {
-  putAsync(autoPlayControlChannel, AutoPlayState.Stop);
+export function quitAutoPlay() {
+  putAsync(autoPlayControlChannel, AutoPlayState.Quit);
   setManualKeyboardMode();
 }
 
@@ -211,7 +173,7 @@ async function applySavePoint(
   savePoint: SavePoint,
   textEditor: vscode.TextEditor | undefined) {
   let editor = textEditor;
-  // if no open text editor, open one
+  // if no open text editor, open one:
   if (!editor) {
     statusBar.show("Opening new window");
     const document = await vscode.workspace.openTextDocument({
@@ -252,7 +214,7 @@ function runPlay(
   let atEndingStopPoint = () => false;
   const stopPoints = buffers.filter(b => isStopPoint(b)).length;
   let stopPointsPassed = 0;
-  
+
   // Is there a stop point at the end of the buffers (ignoring trailing save point(s))?
   let index = buffers.length - 1;
   while (isSavePoint(buffers[index])) {
@@ -260,8 +222,10 @@ function runPlay(
   }
   if (isStopPoint(buffers[index])) {
     atEndingStopPoint = () => stopPointsPassed === stopPoints - 1;
+  } else {
+    console.log("Warning: no stop point at end of macro");
   }
-  
+
   let playChannel: Channel;
   // If the first buffer is a save point, apply it immediately,
   // before any commands arrive:
@@ -278,38 +242,39 @@ function runPlay(
     let command = yield commandChannel;
 
     while (command !== CLOSED) {
-      if (isFrame(playBuffer)) {
-        if (textEditor) {
-          applyFrame(playBuffer, textEditor, editChannel);
+      switch (typeOf(playBuffer)) {
+        case 'Frame':
+          applyFrame(<Frame>playBuffer, textEditor, editChannel);
           yield editChannel; // wait until the edit is done!
           playBuffer = yield playChannel;
-        } else {
-          // textEditor is undefined
-        }
-      } else if (isStopPoint(playBuffer)) {
-        if (command === breakoutCommand) {
-          stopPointsPassed++;
-          stateService.send('RESUME_PLAY');
-          playBuffer = yield playChannel;
-        } else {
-          if (atEndingStopPoint()) {
-            stateService.send('PLAY_PAUSED_AT_END');
-            playBuffer = yield playChannel; // that should be CLOSED
+          break;
+        case 'StopPoint':
+          if (command === breakoutCommand) {
+            stopPointsPassed++;
+            stateService.send('RESUME_PLAY');
+            playBuffer = yield playChannel;
           } else {
-            stateService.send('PLAY_PAUSED'); // We can reach here more than once while at a single stop point; that's OK
-            // make no update to the document
-            // do not get next playBuffer
+            if (atEndingStopPoint()) {
+              stateService.send('PLAY_PAUSED_AT_END');
+              playBuffer = yield playChannel; // that should be CLOSED
+            } else {
+              stateService.send('PLAY_PAUSED'); // We can reach here more than once while at a single stop point; that's OK
+              // make no update to the document
+              // do not get next playBuffer
+            }
           }
-        }
-      } else if (isSavePoint(playBuffer)) {
-        // just in case there's a save point anywhere but at the start or end of the buffers.
-        // Maybe there'll be a use for them in future.
-        // just skip it; the plan is that the save point at the end
-        // will be used to skip actually playing the buffers if desired,
-        // in order to quickly reach the end state
-        playBuffer = yield playChannel;
-      } else if (playBuffer === CLOSED) {
-        commandChannel.close();
+          break;
+        case 'SavePoint':
+          // Just in case there's a save point anywhere besides at the start or end of the buffers.
+          // Maybe there'll be a use for them in future.
+          // Just skip it; the plan is that the save point at the end
+          // will be used to skip actually playing the buffers if desired,
+          // in order to quickly reach the end state
+          playBuffer = yield playChannel;
+          break;
+        case 'Closed':
+          commandChannel.close();
+          break;
       }
       command = yield commandChannel;
     }
@@ -343,10 +308,7 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
       return;
     }
 
-    // Commands provided by the onType command or by autoPlay:
     commandChannel = chan(1);
-
-    autoPlayControlChannel = chan(1);
 
     // goroutines:
     runAutoPlay(autoPlayControlChannel, commandChannel);
