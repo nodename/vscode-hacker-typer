@@ -7,8 +7,14 @@ type TyperStateName = 'idle' | 'record' | 'play' | undefined;
 const idle: TyperStateName = 'idle';
 type RecordStateName = 'startRecord' | 'recording' | 'saving' | 'saved' | 'resumed' | undefined;
 const startRecord: RecordStateName = 'startRecord';
-type PlayStateName = 'startPlay' | 'playing' | 'paused' | 'atEnd' | undefined;
-const startPlay: PlayStateName = 'startPlay';
+type PlayStateName = 'playing' | 'paused' | undefined;
+const playing: PlayStateName = 'playing';
+type AutoplayStateName = 'auto_off' | 'auto_on' | undefined;
+const auto_off: AutoplayStateName = 'auto_off';
+type AutoplayOnStateName = 'paused_auto' | 'playing_auto' | undefined;
+const playing_auto: AutoplayOnStateName = 'playing_auto';
+type NodeType = "parallel" | "atomic" | "compound" | "final" | "history" | undefined;
+const parallel: NodeType = 'parallel';
 
 const recordStates = {
     strict: true,
@@ -19,7 +25,7 @@ const recordStates = {
             on: {
                 '': {
                     target: 'recording',
-                    actions: ['showRecording']
+                    actions: 'showRecording'
                 }
             }
         },
@@ -34,7 +40,7 @@ const recordStates = {
                 RECORDING_SAVED: 'saved',
                 RECORDING_NOT_SAVED: {
                     target: 'recording',
-                    actions: ['showRecordingNotSaved']
+                    actions: 'showRecordingNotSaved'
                 }
             }
         },
@@ -55,24 +61,66 @@ const recordStates = {
 
 const playStates = {
     strict: true,
-    initial: startPlay,
+    type: parallel,
     states: {
-        startPlay: {
-            entry: ['disableIdling', 'enablePlaying', 'startPlaying'],
-            on: {
-                '': 'playing'
+        runPlay: {
+            initial: playing,
+            states: {
+                playing: {
+                    on: {
+                        PLAY_PAUSED: {
+                            target: 'paused',
+                            actions: 'playPauseSound'
+                        },
+                        PLAY_PAUSED_AT_END: {
+                            target: 'paused',
+                            actions: 'playEndSound'
+                        }
+                    }
+                },
+                paused: {
+                    on: {
+                        RESUME_PLAY: 'playing'
+                    }
+                },
+
             }
         },
-        playing: {
-            on: {
-                PLAY_PAUSED: 'paused'
-            }
-        },
-        paused: {
-            entry: ['playPauseSound', 'pauseAutoPlay'],
-            exit: 'resumeAutoPlay',
-            on: {
-                RESUME_PLAY: 'playing'
+        autoplay: {
+            initial: auto_off,
+            states: {
+                auto_off: {
+                    on: {
+                        TOGGLE_AUTOPLAY: 'auto_on'
+                    }
+                },
+                auto_on: {
+                    on: {
+                        TOGGLE_AUTOPLAY: {
+                            target: 'auto_off',
+                            actions: 'pauseAutoPlay'
+                        }
+                    },
+                    initial: playing_auto,
+                    states: {
+                        playing_auto: {
+                            entry: 'startAutoPlay',
+                            on: {
+                                PLAY_PAUSED: 'paused_auto',
+                                PLAY_PAUSED_AT_END: 'paused_auto',
+                            }
+                        },
+                        paused_auto: {
+                            entry: 'pauseAutoPlay',
+                            on: {
+                                RESUME_PLAY: {
+                                    target: 'playing_auto',
+                                    actions: 'resumeAutoPlay'
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -87,7 +135,10 @@ const typerStates = {
             entry: 'enableIdling',
             on: {
                 RECORD: 'record',
-                PLAY: 'play'
+                PLAY: {
+                    target: 'play',
+                    actions: ['disableIdling', 'enablePlaying', 'startPlaying']
+                }
             }
         },
         record: {
@@ -95,21 +146,21 @@ const typerStates = {
             on: {
                 DONE_RECORDING: {
                     target: 'idle',
-                    actions: ['showDoneRecording']
+                    actions: 'showDoneRecording'
                 },
                 CANCELLED_RECORDING: {
                     target: 'idle',
-                    actions: ['showCancelledRecording']
+                    actions: 'showCancelledRecording'
                 },
                 DISCARDED_RECORDING: {
                     target: 'idle',
-                    actions: ['showDiscardedRecording']
+                    actions: 'showDiscardedRecording'
                 }
             },
             ...recordStates
         },
         play: {
-            exit: ['stopAutoPlay', 'disablePlaying'],
+            exit: ['quitAutoPlay', 'disablePlaying'],
             on: {
                 TOGGLE_SILENCE: {
                     actions: 'toggleSilence'
@@ -135,15 +186,29 @@ export interface TyperSchema {
         },
         play: {
             states: {
-                startPlay: {},
-                playing: {},
-                paused: {}
+                runPlay: {
+                    states: {
+                        playing: {},
+                        paused: {}
+                    }
+                },
+                autoplay: {
+                    states: {
+                        auto_off: {},
+                        auto_on: {
+                            states: {
+                                playing_auto: {},
+                                paused_auto: {}
+                            }
+                        }
+                    }
+                }
             }
         }
     };
 }
 
-export type TyperEvent = 
+export type TyperEvent =
     | { type: 'RECORD' }
     | { type: 'PLAY' }
     | { type: 'DONE_RECORDING' }
@@ -156,6 +221,8 @@ export type TyperEvent =
     | { type: 'RECORDING_NOT_SAVED' }
     | { type: 'RESUME_RECORDING' }
     | { type: 'PLAY_PAUSED' }
-    | { type: 'RESUME_PLAY' };
+    | { type: 'PLAY_PAUSED_AT_END' }
+    | { type: 'RESUME_PLAY' }
+    | { type: 'TOGGLE_AUTOPLAY' };
 
 export const typerMachine = Machine<TyperContext, TyperSchema, TyperEvent>(typerStates);
