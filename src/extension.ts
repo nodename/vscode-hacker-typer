@@ -37,7 +37,7 @@ const actionImplementations: FnDict = {
   startAutoPlay: play.startAutoPlay,
   pauseAutoPlay: play.pauseAutoPlay,
   resumeAutoPlay: play.resumeAutoPlay,
-  stopAutoPlay: play.stopAutoPlay,
+  quitAutoPlay: play.quitAutoPlay,
   toggleSilence: sound.toggleSilence,
   disablePlaying: play.disposePlayingCommands
 };
@@ -58,7 +58,6 @@ export function activate(context: vscode.ExtensionContext) {
     // the events they send to it.
   });
 
-  
   stateService.onTransition(state => {
     function valueName(value: any) {
       if (value instanceof Object) {
