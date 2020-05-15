@@ -125,7 +125,8 @@ export default class Storage {
       statusBar.show(`No macros found`);
       return;
     }
-    vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
+    vscode.window.showQuickPick(items.map(item => item.name))
+      .then(picked => {
       if (!picked) { // User hit ESC
         callback(undefined);
       } else {
