@@ -13,6 +13,23 @@ let deleet: vscode.Disposable;
 let exprt: vscode.Disposable;
 let imprt: vscode.Disposable;
 
+function doDelete(context: vscode.ExtensionContext) {
+    return () => {
+        const storage = Storage.getInstance(context);
+        const items = storage.list();
+        vscode.window.showQuickPick(items.map(item => item.name), {
+            canPickMany: true,
+            ignoreFocusOut: true,
+        }).then(picked => {
+            if (!picked) {
+                return;
+            }
+            picked.forEach(item => storage.delete(item));
+            statusBar.show(`Deleted "${picked}"`);
+        });
+    };
+}
+
 export function registerIdleCommands(context: vscode.ExtensionContext) {
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with registerCommand
@@ -24,23 +41,16 @@ export function registerIdleCommands(context: vscode.ExtensionContext) {
     play = vscode.commands.registerCommand(playCommandId, () => { stateService.send('PLAY'); });
 
     let deleteMacroCommandId = "nodename.vscode-hacker-typer-fork.deleteMacro";
-    deleet = vscode.commands.registerCommand(deleteMacroCommandId, () => {
-        const storage = Storage.getInstance(context);
-        const items = storage.list();
-        vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
-            if (!picked) {
-                return;
-            }
-            storage.delete(picked);
-            statusBar.show(`Deleted "${picked}"`);
-        });
-    });
+    deleet = vscode.commands.registerCommand(deleteMacroCommandId, doDelete(context));
 
     let exportMacroCommandId = "nodename.vscode-hacker-typer-fork.exportMacro";
     exprt = vscode.commands.registerCommand(exportMacroCommandId, () => {
         const storage = Storage.getInstance(context);
         const items = storage.list();
-        vscode.window.showQuickPick(items.map(item => item.name)).then(picked => {
+        vscode.window.showQuickPick(items.map(item => item.name), {
+            canPickMany: false,
+            ignoreFocusOut: true,
+        }).then(picked => {
             if (!picked) {
                 return;
             }
@@ -80,7 +90,7 @@ export function registerIdleCommands(context: vscode.ExtensionContext) {
             if (files === undefined) {
                 return;
             }
-            for (var file in files) {
+            for (const file in files) {
                 const uri = vscode.Uri.parse(file);
                 storage.imprt(uri, (err) => {
                     if (err) {
