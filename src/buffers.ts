@@ -1,6 +1,7 @@
 "use strict";
 
 import * as vscode from "vscode";
+import { CLOSED } from "js-csp";
 import { Edit, toEdit, kindOf } from "./edit";
 
 export type SavePoint = {
@@ -29,6 +30,20 @@ export type Buffer = SavePoint | StopPoint | Frame;
 export const emptyChangeInfo = {
   changes: []
 };
+
+export type BufferType = 'SavePoint' | 'StopPoint' | 'Frame' | 'Closed';
+
+export function typeOf(buffer: Buffer | null): BufferType {
+  if (buffer === CLOSED) {
+    return 'Closed';
+  } else if (isSavePoint(buffer)) {
+    return 'SavePoint';
+  } else if (isStopPoint(buffer)) {
+    return 'StopPoint';
+  } else {
+    return 'Frame';
+  }
+}
 
 export function isSavePoint(buffer: Buffer): buffer is SavePoint {
   return (
