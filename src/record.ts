@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import { go, Channel, chan, alts, put, putAsync, CLOSED } from "js-csp";
 import {
-  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo, SavePoint, ChangeInfo
+  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo, SavePoint, ChangeInfo, createStopPoint, createEndingStopPoint
 } from "./buffers";
 import Storage from "./storage";
 import { Interpreter } from "xstate";
@@ -22,10 +22,7 @@ let undoChannel: Channel;
 let bufferChannel: Channel;
 
 function insertStop(name: string | null) {
-  putAsync(bufferChannel, {
-    stop: { name: name || null },
-    selections: undefined
-  });
+  putAsync(bufferChannel, createStopPoint(name));
 }
 
 // state is 'saved':
@@ -167,6 +164,30 @@ async function saveOrDiscardCurrent() {
         break;
       case DISCARD:
         return 'discard';
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+async function addStopPointOrNot() {
+  const YES = "Yes";
+  const NO = "No";
+
+  while (true) {
+    let selection = await vscode.window.showQuickPick([YES, NO], {
+      canPickMany: false,
+      ignoreFocusOut: true,
+      placeHolder: "No Stop Point at End of Macro; Add One?"
+    });
+
+    switch (selection) {
+      case YES:
+        return true;
+        break;
+      case NO:
+        return false;
         break;
       default:
         break;
@@ -413,14 +434,24 @@ async function doSaveRecording() {
     return false;
   }
 
+  const lastBuffer = bufferList[bufferList.length - 1];
+  if (isStopPoint(lastBuffer)) {
+    lastBuffer.stop.name = 'END_OF_MACRO';
+  } else {
+    const yesOrNo = await addStopPointOrNot();
+    if (yesOrNo === true) {
+      bufferList.push(createEndingStopPoint());
+    }
+  }
+
   // Add a save point at the end:
   const textEditor = vscode.window.activeTextEditor;
-  if (textEditor) { 
+  if (textEditor) {
     bufferList.push(createSavePoint(textEditor));
   }
 
-  let name = await vscode.window.showInputBox({
-    prompt: "Give this thing a name (or hit ESC to discard it)",
+  const name = await vscode.window.showInputBox({
+    prompt: "Give the macro a name (or hit ESC to discard it)",
     placeHolder: "name",
     ignoreFocusOut: true
   });

@@ -1,7 +1,7 @@
 "use strict";
 
 import * as vscode from "vscode";
-import { Buffer, SavePoint, isSavePoint, isStopPoint, typeOf, Frame } from "./buffers";
+import { Buffer, SavePoint, isSavePoint, typeOf, Frame } from "./buffers";
 import Storage from "./storage";
 import { go, chan, put, putAsync, Channel, CLOSED, operations, timeout, alts } from "js-csp";
 import { replaceAllContent, revealSelections, applyFrame } from "./edit";
@@ -211,21 +211,6 @@ function runPlay(
     buffers = buffers.slice(0, buffers.length - 1); // butLast
   }
 
-  let atEndingStopPoint = () => false;
-  const stopPoints = buffers.filter(b => isStopPoint(b)).length;
-  let stopPointsPassed = 0;
-
-  // Is there a stop point at the end of the buffers (ignoring trailing save point(s))?
-  let index = buffers.length - 1;
-  while (isSavePoint(buffers[index])) {
-    --index;
-  }
-  if (isStopPoint(buffers[index])) {
-    atEndingStopPoint = () => stopPointsPassed === stopPoints - 1;
-  } else {
-    console.log("Warning: no stop point at end of macro");
-  }
-
   let playChannel: Channel;
   // If the first buffer is a save point, apply it immediately,
   // before any commands arrive:
@@ -250,22 +235,25 @@ function runPlay(
           break;
         case 'StopPoint':
           if (command === breakoutCommand) {
-            stopPointsPassed++;
             stateService.send('RESUME_PLAY');
             playBuffer = yield playChannel;
           } else {
-            if (atEndingStopPoint()) {
-              stateService.send('PLAY_PAUSED_AT_END');
-              playBuffer = yield playChannel; // that should be CLOSED
-            } else {
-              stateService.send('PLAY_PAUSED'); // We can reach here more than once while at a single stop point; that's OK
-              // make no update to the document
-              // do not get next playBuffer
-            }
+            stateService.send('PLAY_PAUSED'); // We can reach here more than once while at a single stop point; that's OK
+            // make no update to the document
+            // do not get next playBuffer
+          }
+          break;
+        case 'EndingStopPoint':
+          if (command === breakoutCommand) {
+            commandChannel.close();
+            stateService.send('DONE_PLAYING');
+            return;
+          } else {
+            stateService.send('PLAY_PAUSED_AT_END');
           }
           break;
         case 'SavePoint':
-          // Just in case there's a save point anywhere besides at the start or end of the buffers.
+          // Just in case there's a save point anywhere other than the start or end of the buffers.
           // Maybe there'll be a use for them in future.
           // Just skip it; the plan is that the save point at the end
           // will be used to skip actually playing the buffers if desired,
@@ -274,21 +262,16 @@ function runPlay(
           break;
         case 'Closed':
           commandChannel.close();
+          stateService.send('DONE_PLAYING'); // This takes us out of the play state, back to the idle state
           break;
       }
       command = yield commandChannel;
     }
-    // commandChannel closed:
-    console.log("Command channel closed");
-    statusBar.show("Done playing");
-    stateService.send('DONE_PLAYING'); // This takes us out of the play state, back to the idle state
-    return;
   });
 }
 
 function cancelPlaying() {
-  statusBar.show("Cancelled playing");
-  stateService.send('DONE_PLAYING');
+  stateService.send('CANCELLED_PLAYING');
 }
 
 function toggleSilence() {

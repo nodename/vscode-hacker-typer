@@ -165,7 +165,14 @@ const typerStates = {
                 TOGGLE_SILENCE: {
                     actions: 'toggleSilence'
                 },
-                DONE_PLAYING: 'idle'
+                DONE_PLAYING: {
+                    target: 'idle',
+                    actions: 'showDonePlaying'
+                },
+                CANCELLED_PLAYING: {
+                    target: 'idle',
+                    actions: 'showCancelledPlaying'
+                }
             },
             ...playStates
         }
@@ -216,6 +223,7 @@ export type TyperEvent =
     | { type: 'DISCARDED_RECORDING' }
     | { type: 'TOGGLE_SILENCE' }
     | { type: 'DONE_PLAYING' }
+    | { type: 'CANCELLED_PLAYING' }
     | { type: 'SAVE_RECORDING' }
     | { type: 'RECORDING_SAVED' }
     | { type: 'RECORDING_NOT_SAVED' }

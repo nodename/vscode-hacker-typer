@@ -34,6 +34,8 @@ const actionImplementations: FnDict = {
   startPlaying: startPlaying,
   playPauseSound: sound.playPauseSound,
   playEndSound: sound.playEndSound,
+  showCancelledPlaying: () => statusBar.show('Cancelled playing'),
+  showDonePlaying: () => statusBar.show("Done playing"),
   startAutoPlay: play.startAutoPlay,
   pauseAutoPlay: play.pauseAutoPlay,
   resumeAutoPlay: play.resumeAutoPlay,
