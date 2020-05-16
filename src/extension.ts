@@ -27,7 +27,7 @@ const actionImplementations: FnDict = {
   continueOrEndRecording: recording.continueOrEndRecording,
   showDoneRecording: () => statusBar.show('Done recording'),
   showCancelledRecording: () => statusBar.show('Recording cancelled'),
-  showCDiscardedRecording: () => statusBar.show('Recording discarded'),
+  showDiscardedRecording: () => statusBar.show('Recording discarded'),
   resumeRecording: recording.resumeRecording,
   disableRecording: recording.disposeRecordingHooks,
   enablePlaying: play.registerPlayingCommands,
