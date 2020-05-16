@@ -16,6 +16,17 @@ export type StopPoint = {
   };
 };
 
+export function createStopPoint(name: string | null) {
+  return {
+    stop: { name: name || null },
+    selections: undefined
+  };
+}
+
+export function createEndingStopPoint() {
+  return createStopPoint('END_OF_MACRO');
+}
+
 export type ChangeInfo = {
   changes: vscode.TextDocumentContentChangeEvent[]
 };
@@ -31,7 +42,7 @@ export const emptyChangeInfo = {
   changes: []
 };
 
-export type BufferType = 'SavePoint' | 'StopPoint' | 'Frame' | 'Closed';
+export type BufferType = 'SavePoint' | 'StopPoint' | 'EndingStopPoint' | 'Frame' | 'Closed';
 
 export function typeOf(buffer: Buffer | null): BufferType {
   if (buffer === CLOSED) {
@@ -39,7 +50,7 @@ export function typeOf(buffer: Buffer | null): BufferType {
   } else if (isSavePoint(buffer)) {
     return 'SavePoint';
   } else if (isStopPoint(buffer)) {
-    return 'StopPoint';
+    return isEndingStopPoint(buffer) ? 'EndingStopPoint' : 'StopPoint';
   } else {
     return 'Frame';
   }
@@ -58,6 +69,13 @@ export function isStopPoint(buffer: Buffer): buffer is StopPoint {
     buffer &&
     (<StopPoint>buffer).stop !== undefined &&
     (<StopPoint>buffer).stop !== null
+  );
+}
+
+export function isEndingStopPoint(buffer: Buffer) {
+  return (
+    isStopPoint(buffer) &&
+    buffer.stop.name === 'END_OF_MACRO'
   );
 }
 
