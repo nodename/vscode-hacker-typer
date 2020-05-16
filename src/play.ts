@@ -132,16 +132,9 @@ function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
         if (state === AutoPlayState.Quit) {
           return;
         }
-      } else { // timeout expired, time to do the action for my current state:
-        switch (state) {
-          case AutoPlayState.Play:
+      } else { // timeout expired
+        if (state === AutoPlayState.Play) {
             yield put(commandChannel, nextCommand);
-            break;
-          case AutoPlayState.Pause:
-            // do nothing
-            break;
-          default:
-            break;
         }
       }
     }
