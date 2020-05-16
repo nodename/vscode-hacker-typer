@@ -2,7 +2,8 @@
 
 import * as vscode from "vscode";
 import { Channel, putAsync } from "js-csp";
-import { Frame } from "./buffers";
+import { Frame, SavePoint } from "./buffers";
+import * as statusBar from "./statusBar";
 
 const DeleteTag = "Delete";
 const InsertTag = "Insert";
@@ -188,4 +189,32 @@ export async function replaceAllContent(textEditor: vscode.TextEditor, newConten
         edit.delete(range);
         edit.insert(new vscode.Position(0, 0), newContent);
     });
+}
+
+export async function applySavePoint(
+    savePoint: SavePoint,
+    textEditor: vscode.TextEditor | undefined) {
+    let editor = textEditor;
+    // if no open text editor, open one:
+    if (!editor) {
+        statusBar.show("Opening new window");
+        const document = await vscode.workspace.openTextDocument({
+            language: savePoint.language,
+            content: savePoint.content
+        });
+
+        editor = await vscode.window.showTextDocument(document);
+    }
+    await replaceAllContent(editor, savePoint.content);
+
+    if (editor) {
+        revealSelections(savePoint.selections, editor);
+
+        // language should always be defined, guard statement here
+        // to support old recorded frames before language bit was added
+        if (savePoint.language) {
+            // @TODO set editor language once the API becomes available:
+            // https://github.com/Microsoft/vscode/issues/1800
+        }
+    }
 }

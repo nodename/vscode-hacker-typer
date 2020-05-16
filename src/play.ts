@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { Buffer, SavePoint, isSavePoint, typeOf, Frame } from "./buffers";
 import Storage from "./storage";
 import { go, chan, put, putAsync, Channel, CLOSED, operations, timeout, alts } from "js-csp";
-import { replaceAllContent, revealSelections, applyFrame } from "./edit";
+import { applyFrame, applySavePoint } from "./edit";
 import { Interpreter } from "xstate";
 import { TyperContext, TyperSchema, TyperEvent } from "./states";
 import * as statusBar from "./statusBar";
@@ -167,34 +167,6 @@ export function resumeAutoPlay() {
 export function quitAutoPlay() {
   putAsync(autoPlayControlChannel, AutoPlayState.Quit);
   setManualKeyboardMode();
-}
-
-async function applySavePoint(
-  savePoint: SavePoint,
-  textEditor: vscode.TextEditor | undefined) {
-  let editor = textEditor;
-  // if no open text editor, open one:
-  if (!editor) {
-    statusBar.show("Opening new window");
-    const document = await vscode.workspace.openTextDocument({
-      language: savePoint.language,
-      content: savePoint.content
-    });
-
-    editor = await vscode.window.showTextDocument(document);
-  }
-  await replaceAllContent(editor, savePoint.content);
-
-  if (editor) {
-    revealSelections(savePoint.selections, editor);
-
-    // language should always be defined, guard statement here
-    // to support old recorded frames before language bit was added
-    if (savePoint.language) {
-      // @TODO set editor language once the API becomes available:
-      // https://github.com/Microsoft/vscode/issues/1800
-    }
-  }
 }
 
 function runPlay(
