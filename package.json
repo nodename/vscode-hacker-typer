@@ -248,12 +248,11 @@
   "dependencies": {
     "xstate": "4.9.1",
     "js-csp": "^1.0.1",
-    "music-metadata": "^4.4.0",
+    "music-metadata": "^6.4.0",
     "strtok3": "6.0.0",
     "node-wav-player": "^0.1.0",
     "on-change": "^2.0.1",
     "token-types": "1.0.2",
     "vscode-cache": "^0.3.0"
-  },
-  "WARNING": "All occurrences of strtok3/lib/type in music-metadata source files must be changed to strtok3/lib/types"
+  }
 }
