@@ -252,7 +252,7 @@
     "strtok3": "6.0.0",
     "node-wav-player": "^0.1.0",
     "on-change": "^2.0.1",
-    "token-types": "1.0.2",
+    "token-types": "^2.0.0",
     "vscode-cache": "^0.3.0"
   }
 }
