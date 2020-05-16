@@ -3,7 +3,6 @@
 import * as vscode from "vscode";
 import { Channel, putAsync } from "js-csp";
 import { Frame, SavePoint } from "./buffers";
-import * as statusBar from "./statusBar";
 
 const DeleteTag = "Delete";
 const InsertTag = "Insert";
@@ -148,7 +147,7 @@ async function applyChange(
     applyEdit(edit, editBuilder);
 }
 
-export function revealSelections(
+function revealSelections(
     selections: vscode.Selection[],
     editor: vscode.TextEditor) {
     editor.selections = selections;
@@ -164,31 +163,33 @@ export function revealSelections(
 }
 
 export function applyFrame(frame: Frame, textEditor: vscode.TextEditor, out: Channel) {
-    textEditor.edit(function (editBuilder: vscode.TextEditorEdit): void {
+    const createEdits = (editBuilder: vscode.TextEditorEdit) => {
         applyChanges(frame.changeInfo.changes, editBuilder);
-    }).then(() => {
-        revealSelections(frame.selections, <vscode.TextEditor>textEditor);
-        putAsync(out, "done");
-    });
+    };
+    textEditor.edit(createEdits)
+        .then((success) => {
+            revealSelections(frame.selections, <vscode.TextEditor>textEditor);
+            putAsync(out, "done");
+        });
 }
 
-export async function replaceAllContent(textEditor: vscode.TextEditor, newContent: string) {
-    await textEditor.edit(edit => {
+async function replaceAllContent(textEditor: vscode.TextEditor, newContent: string): Promise<boolean> {
+    const createEdits = (editBuilder: vscode.TextEditorEdit) => {
         const lineCount = textEditor.document.lineCount;
         const range = new vscode.Range(
             new vscode.Position(0, 0),
             new vscode.Position(
                 lineCount,
-                Math.max(
-                    0,
-                    textEditor.document.lineAt(Math.max(0, lineCount - 1)).text.length - 1
-                )
+                Math.max(0, textEditor.document.lineAt(Math.max(0, lineCount - 1)).text.length - 1)
             )
         );
 
-        edit.delete(range);
-        edit.insert(new vscode.Position(0, 0), newContent);
-    });
+        editBuilder.delete(range);
+        editBuilder.insert(new vscode.Position(0, 0), newContent);
+    };
+
+    const success = await textEditor.edit(createEdits);
+    return success;
 }
 
 export async function applySavePoint(
@@ -197,7 +198,6 @@ export async function applySavePoint(
     let editor = textEditor;
     // if no open text editor, open one:
     if (!editor) {
-        statusBar.show("Opening new window");
         const document = await vscode.workspace.openTextDocument({
             language: savePoint.language,
             content: savePoint.content
@@ -205,7 +205,8 @@ export async function applySavePoint(
 
         editor = await vscode.window.showTextDocument(document);
     }
-    await replaceAllContent(editor, savePoint.content);
+    const success = await replaceAllContent(editor, savePoint.content);
+    console.log(success);
 
     if (editor) {
         revealSelections(savePoint.selections, editor);
