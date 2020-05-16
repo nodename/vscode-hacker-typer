@@ -135,7 +135,7 @@ async function resumeOrNewRecording() {
   }
   switch (selection) {
     case NEW:
-      stateService.send('SAVE_RECORDING'); // TODO save simple
+      stateService.send('SAVE_RECORDING');
       startNewRecording();
       break;
     case CONTINUE:
@@ -438,8 +438,8 @@ async function doSaveRecording() {
   if (isStopPoint(lastBuffer)) {
     lastBuffer.stop.name = 'END_OF_MACRO';
   } else {
-    const yesOrNo = await addStopPointOrNot();
-    if (yesOrNo === true) {
+    const addIt = await addStopPointOrNot();
+    if (addIt) {
       bufferList.push(createEndingStopPoint());
     }
   }
