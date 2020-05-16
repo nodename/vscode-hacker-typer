@@ -24,15 +24,17 @@ This version is a fork of [Jani Eväkallio's original extension](https://github.
 ### Record a macro
 
 1. Open a file or a new VSCode window.
-2. Execute `HackerTyper: Record Macro` command from the command palette (or `Cmd+Shift+T R`).
-3. The current content and selections of the active editor will be snapshotted.
-4. Start typing code. Every keystroke is recorded into an in-memory buffer, including deletions, selection changes, etc.
-5. If you make a mistake you can back up by typing `Cmd+Shift+T U` (the `Undo Last Recorded Buffer` command).
-6. You can cancel recording with `HackerTyper: Cancel Recording` (`Cmd+Shift+T C`).
-7. When you're ready, execute `HackerTyper: Save or Discard Macro` command from the command palette (or `Cmd+Shift+T S`),
+2. If you want to use another macro's end state as your new macro's start state,
+  execute `HackerTyper: Load Macro's Final State` from the command palette (or `Cmd+Shift+T F`).
+3. Execute `HackerTyper: Record Macro` command from the command palette (or `Cmd+Shift+T R`).
+4. The current content and selections of the active editor will be snapshotted.
+5. Start typing. Every edit is recorded into an in-memory buffer, including deletions, selection changes, etc.
+6. If you make a mistake you can back up by typing `Cmd+Shift+T U` (the `Undo Last Recorded Buffer` command).
+7. You can cancel recording with `HackerTyper: Cancel Recording` (`Cmd+Shift+T C`).
+8. When you're ready, execute `HackerTyper: Save or Discard Macro` command from the command palette (or `Cmd+Shift+T S`),
   and choose `Save` or `Discard`.
-8. Give your macro a name.
-9. You're done! Or if you wish, you can continue recording the macro.
+9. Give your macro a name.
+10. You're done! Or if you wish, you can continue recording the macro.
 
 ### Play a macro
 
@@ -52,7 +54,7 @@ While in recording mode, execute the `HackerTyper: Insert Stop Point` command fr
 
 When you hit a stop point in play mode, either manual or autoplay, a high sound ("beep") is played. You must press `ENTER` to break out of the stop point and continue playing. All other keystrokes are ignored until you break out.
 
-If you're going to play the macro by hitting keys, you'll want to put a stop point at the end so you don't overrun the end and let your typed gibberish appear on screen.
+If you're going to play the macro by hitting keys, you'll want to put a stop point at the end so you don't overrun the end and let your typed gibberish appear on screen. (If you don't do this, you'll be prompted to add a final stop point when you save the macro.)
 
 You can turn off/on beeps by typing `Cmd+Shift+T T` (the `HackerTyper: Toggle Silence` command).
 
