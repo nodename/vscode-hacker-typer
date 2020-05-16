@@ -5,6 +5,8 @@ import Storage from "./storage";
 import showError from "./showError";
 import { stateService } from "./extension";
 import * as statusBar from "./statusBar";
+import { isSavePoint, SavePoint } from "./buffers";
+import { applySavePoint } from "./edit";
 
 // These are the commands that are available in the Idle state:
 let record: vscode.Disposable;
@@ -12,6 +14,7 @@ let play: vscode.Disposable;
 let deleet: vscode.Disposable;
 let exprt: vscode.Disposable;
 let imprt: vscode.Disposable;
+let loadFinalState: vscode.Disposable;
 
 function doDelete(context: vscode.ExtensionContext) {
     return () => {
@@ -26,6 +29,24 @@ function doDelete(context: vscode.ExtensionContext) {
             }
             picked.forEach(item => storage.delete(item));
             statusBar.show(`Deleted "${picked}"`);
+        });
+    };
+}
+
+function doLoadFinalState(context: vscode.ExtensionContext) {
+    return () => {
+        const storage = Storage.getInstance(context);
+        storage.userChooseMacro((macro) => {
+            if (macro) {
+                let textEditor = vscode.window.activeTextEditor;
+                const buffers = macro.buffers;
+                const lastBuffer = buffers[buffers.length - 1];
+                if (isSavePoint(lastBuffer)) {
+                    applySavePoint(<SavePoint>lastBuffer, textEditor);
+                } else {
+                    statusBar.show('No save point at end');
+                }
+            }
         });
     };
 }
@@ -104,12 +125,15 @@ export function registerIdleCommands(context: vscode.ExtensionContext) {
         });
     });
 
+    let loadFinalStateOfMacroCommandId = "nodename.vscode-hacker-typer-fork.loadFinalStateOfMacro";
+    loadFinalState = vscode.commands.registerCommand(loadFinalStateOfMacroCommandId, doLoadFinalState(context));
+
     // These will automatically be disposed when the extension is deactivated:
-    context.subscriptions.push(record, play, deleet, exprt, imprt);
+    context.subscriptions.push(record, play, deleet, exprt, imprt, loadFinalState);
 }
 
 export function disposeIdleCommands(context: vscode.ExtensionContext) {
-    for (const command of [record, play, deleet, exprt, imprt]) {
+    for (const command of [record, play, deleet, exprt, imprt, loadFinalState]) {
       command.dispose();
     }
 }

@@ -66,9 +66,10 @@ For Windows, substitute `Ctrl` for `Cmd`.
 |-----------|:-----------:|
 | `HackerTyper: Record Macro` | Cmd+Shift+T R |
 | `HackerTyper: Play Macro`   | Cmd+Shift+T P |
-| `HackerTyper: Delete Macro` | Cmd+Shift+T D |
+| `HackerTyper: Delete Macros` | Cmd+Shift+T D |
 | `HackerTyper: Export Macro` | Cmd+Shift+T E |
 | `HackerTyper: Import Macro` | Cmd+Shift+T M |
+| `HackerTyper: Load Macro's Final State` | Cmd+Shift+T F |
 
 Export and Import were implemented by [Kael Kirk](https://github.com/Kaelinator). 
 

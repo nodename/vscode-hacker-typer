@@ -41,7 +41,8 @@
     "onCommand:nodename.vscode-hacker-typer-fork.playMacro",
     "onCommand:nodename.vscode-hacker-typer-fork.deleteMacro",
     "onCommand:nodename.vscode-hacker-typer-fork.exportMacro",
-    "onCommand:nodename.vscode-hacker-typer-fork.importMacro"
+    "onCommand:nodename.vscode-hacker-typer-fork.importMacro",
+    "onCommand:nodename.vscode-hacker-typer-fork.loadFinalStateOfMacro"
   ],
   "main": "./out/extension",
   "contributes": {
@@ -95,6 +96,16 @@
         "command": "nodename.vscode-hacker-typer-fork.playMacro",
         "when": "isWindows",
         "key": "ctrl+shift+t p"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.loadFinalStateOfMacro",
+        "when": "isMac",
+        "key": "cmd+shift+t f"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.loadFinalStateOfMacro",
+        "when": "isWindows",
+        "key": "ctrl+shift+t f"
       },
       {
         "command": "nodename.vscode-hacker-typer-fork.saveOrDiscardMacro",
@@ -166,6 +177,11 @@
       {
         "command": "nodename.vscode-hacker-typer-fork.playMacro",
         "title": "Play Macro",
+        "category": "HackerTyper"
+      },
+      {
+        "command": "nodename.vscode-hacker-typer-fork.loadFinalStateOfMacro",
+        "title": "Load Macro's Final State",
         "category": "HackerTyper"
       },
       {
