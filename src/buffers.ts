@@ -3,6 +3,7 @@
 import * as vscode from "vscode";
 import { CLOSED } from "js-csp";
 import { Edit, toEdit, kindOf } from "./edit";
+import { last } from "./fun";
 
 export type SavePoint = {
   content: string;
@@ -117,7 +118,7 @@ function reverseChangeEvent(
 
   const textLines = changeEvent.text.split("\n");
   const nls = textLines.length - 1;
-  const lastLine = textLines[textLines.length - 1];
+  const lastLine = last(textLines);
 
   const newEndLine = changeEvent.range.start.line + nls;
   const newEndChar = changeEvent.range.start.character + lastLine.length;

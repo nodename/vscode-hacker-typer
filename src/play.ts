@@ -8,6 +8,7 @@ import { applyFrame, applySavePoint } from "./edit";
 import { Interpreter } from "xstate";
 import { TyperContext, TyperSchema, TyperEvent } from "./states";
 import * as statusBar from "./statusBar";
+import { rest, last, butLast } from "./fun";
 
 
 // Data Flow: Playing a macro ////////////////////////////////////////////////////////////////////////
@@ -170,10 +171,9 @@ function runPlay(
   const editChannel = chan(1);
 
   // Is there a save point at the end of the buffers?
-  const lastBuffer = buffers[buffers.length - 1];
-  if (isSavePoint(lastBuffer)) {
+  if (isSavePoint(last(buffers))) {
     // drop it; we don't use it in playback:
-    buffers = buffers.slice(0, buffers.length - 1); // butLast
+    buffers = butLast(buffers);
   }
 
   let playChannel: Channel;
@@ -182,7 +182,7 @@ function runPlay(
   const firstBuffer = buffers[0];
   if (isSavePoint(firstBuffer)) {
     applySavePoint(<SavePoint>firstBuffer, textEditor);
-    playChannel = operations.fromColl(buffers.slice(1));
+    playChannel = operations.fromColl(rest(buffers));
   } else {
     playChannel = operations.fromColl(buffers);
   }
@@ -195,7 +195,7 @@ function runPlay(
       switch (typeOf(playBuffer)) {
         case 'Frame':
           applyFrame(<Frame>playBuffer, textEditor, editChannel);
-          yield editChannel; // wait until the edit is done!
+          yield editChannel; // wait until the edit is done
           playBuffer = yield playChannel;
           break;
         case 'StopPoint':
@@ -219,10 +219,8 @@ function runPlay(
           break;
         case 'SavePoint':
           // Just in case there's a save point anywhere other than the start or end of the buffers.
+          // Just skip it.
           // Maybe there'll be a use for them in future.
-          // Just skip it; the plan is that the save point at the end
-          // will be used to skip actually playing the buffers if desired,
-          // in order to quickly reach the end state
           playBuffer = yield playChannel;
           break;
         case 'Closed':

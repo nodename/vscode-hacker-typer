@@ -7,6 +7,7 @@ import { stateService } from "./extension";
 import * as statusBar from "./statusBar";
 import { isSavePoint, SavePoint } from "./buffers";
 import { applySavePoint } from "./edit";
+import { last } from "./fun";
 
 // These are the commands that are available in the Idle state:
 let record: vscode.Disposable;
@@ -104,7 +105,7 @@ function doLoadFinalState(context: vscode.ExtensionContext) {
             if (macro) {
                 const textEditor = vscode.window.activeTextEditor;
                 const buffers = macro.buffers;
-                const lastBuffer = buffers[buffers.length - 1];
+                const lastBuffer = last(buffers);
                 if (isSavePoint(lastBuffer)) {
                     applySavePoint(<SavePoint>lastBuffer, textEditor);
                 } else {

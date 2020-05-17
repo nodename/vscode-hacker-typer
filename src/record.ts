@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { go, Channel, chan, alts, put, putAsync, CLOSED } from "js-csp";
 import {
   Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo,
-  SavePoint, ChangeInfo, createStopPoint, createEndingStopPoint, isFrame
+  SavePoint, ChangeInfo, createStopPoint, createEndingStopPoint, typeOf
 } from "./buffers";
 import Storage from "./storage";
 import { Interpreter } from "xstate";
@@ -12,6 +12,7 @@ import { TyperContext, TyperSchema, TyperEvent } from "./states";
 import * as statusBar from "./statusBar";
 import showError from "./showError";
 import { applyFrame } from "./edit";
+import { last } from "./fun";
 
 // Messages from our documentChange handler:
 let documentChangeChannel: Channel;
@@ -22,7 +23,7 @@ let undoChannel: Channel;
 // Buffers destined for bufferList:
 let bufferChannel: Channel;
 
-function insertStop(name: string | null) {
+function insertStopPoint(name: string | null) {
   putAsync(bufferChannel, createStopPoint(name));
 }
 
@@ -56,7 +57,7 @@ function registerRecordingCommands() {
   const insertStopCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.insertStop",
     () => {
-      insertStop(null);
+      insertStopPoint(null);
     }
   );
 
@@ -207,7 +208,6 @@ function handleDocumentChange(event: vscode.TextDocumentChangeEvent) {
     console.log(`documentChanges:
     ${event.contentChanges.map(describeChange).join("\n")}`);
     putAsync(documentChangeChannel, {
-      // store changes, selection change will commit
       changes: event.contentChanges
     });
   }
@@ -321,48 +321,34 @@ function undo(undoneChannel: Channel) {
 
   go(function* () {
     ignoreDocumentAndSelectionChanges();
-    let bufferIndex = bufferList.length - 1;
-    let bufferToUndo = bufferList[bufferIndex];
-    if (isFrame(bufferToUndo)) {
-      let char = bufferToUndo.changeInfo && bufferToUndo.changeInfo.changes[0].text;
-      console.log(char);
-    }
-    while (isStopPoint(bufferToUndo)) {
+    let bufferToUndo = last(bufferList);
+    while (typeOf(bufferToUndo) !== 'Frame') {
       bufferList.pop();
-      bufferIndex -= 1;
-      bufferToUndo = bufferList[bufferIndex];
-      if (isFrame(bufferToUndo)) {
-        let char = bufferToUndo.changeInfo && bufferToUndo.changeInfo.changes[0].text;
-        console.log(char);
-      }
+      bufferToUndo = last(bufferList);
     }
     if (bufferToUndo) {
       bufferList.pop();
-      bufferIndex -= 1;
-      let previousFrameOrSavePoint = bufferList[bufferIndex];
-      while (isStopPoint(previousFrameOrSavePoint)) {
+      let previousFrameOrSavePoint = last(bufferList);
+      while (typeOf(previousFrameOrSavePoint) !== 'Frame'
+        && typeOf(previousFrameOrSavePoint) !== 'SavePoint') {
         bufferList.pop();
-        bufferIndex -= 1;
-        previousFrameOrSavePoint = bufferList[bufferIndex];
+        previousFrameOrSavePoint = last(bufferList);
       }
-      let undoFrame: Frame;
-      if (isFrame(bufferToUndo)) {
-        undoFrame = reverseFrame(
-          (<Frame>bufferToUndo).changeInfo,
-          (<Frame | SavePoint>previousFrameOrSavePoint).selections,
-          currentActiveDoc);
-        if (!textEditor) {
-          // error
-        } else {
-          // apply the undo to the document:
-          applyFrame(undoFrame, textEditor, editChannel);
-          // wait for applyFrame to finish:
-          yield editChannel;
-        }
+      const undoFrame = reverseFrame(
+        (<Frame>bufferToUndo).changeInfo,
+        (<Frame | SavePoint>previousFrameOrSavePoint).selections,
+        currentActiveDoc);
+      if (!textEditor) {
+        // error
+      } else {
+        // apply the undo to the document:
+        applyFrame(undoFrame, textEditor, editChannel);
+        // wait for applyFrame to finish:
+        yield editChannel;
       }
     }
     registerDocumentAndSelectionChangeHandlers();
-    yield put(undoneChannel, 'done');
+    yield put(undoneChannel, 'undone');
     return;
   });
 }
@@ -382,7 +368,6 @@ function runBuffers() {
       } else { // result came from bufferChannel
         let buffer = result.value;
         if (buffer === CLOSED) {
-          console.log("no more buffers");
           saveOrDiscardCurrent()
             .then(saveOrDiscard => {
               switch (saveOrDiscard) {
@@ -473,7 +458,7 @@ async function doSaveRecording() {
     return false;
   }
 
-  const lastBuffer = bufferList[bufferList.length - 1];
+  const lastBuffer = last(bufferList);
   if (isStopPoint(lastBuffer)) {
     lastBuffer.stop.name = 'END_OF_MACRO';
   } else {
@@ -483,7 +468,8 @@ async function doSaveRecording() {
     }
   }
 
-  // Add a save point at the end:
+  // Add a save point at the end.
+  // This is used to quickly reach the end state for further recording:
   const textEditor = vscode.window.activeTextEditor;
   if (textEditor) {
     bufferList.push(createSavePoint(textEditor));
