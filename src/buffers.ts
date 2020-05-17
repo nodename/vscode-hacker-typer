@@ -150,11 +150,11 @@ function reverseChangeInfo(
 }
 
 export function reverseFrame(
-  frame: Frame,
-  previousFrameOrSavePoint: Frame | SavePoint,
+  frameChangeInfo: ChangeInfo,
+  previousSelections: vscode.Selection[],
   document: vscode.TextDocument): Frame {
   return {
-    changeInfo: reverseChangeInfo(frame.changeInfo, document),
-    selections: previousFrameOrSavePoint.selections
+    changeInfo: reverseChangeInfo(frameChangeInfo, document),
+    selections: previousSelections
   };
 }
