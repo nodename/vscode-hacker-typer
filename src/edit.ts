@@ -106,11 +106,11 @@ function applyEdit(edit: Edit, editBuilder: vscode.TextEditorEdit) {
     }
 }
 
-async function applyChanges(
+function applyChanges(
     changeEvents: vscode.TextDocumentContentChangeEvent[],
     editBuilder: vscode.TextEditorEdit) {
     for (const changeEvent of changeEvents) {
-        await applyChange(changeEvent, editBuilder);
+        applyChange(changeEvent, editBuilder);
     }
 }
 
@@ -135,7 +135,7 @@ export function toEdit(change: vscode.TextDocumentContentChangeEvent): Edit {
     }
 }
 
-async function applyChange(
+function applyChange(
     changeEvent: vscode.TextDocumentContentChangeEvent,
     editBuilder: vscode.TextEditorEdit) {
     // console.log(`applyContentChange:
