@@ -3,7 +3,8 @@
 import * as vscode from "vscode";
 import { go, Channel, chan, alts, put, putAsync, CLOSED } from "js-csp";
 import {
-  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo, SavePoint, ChangeInfo, createStopPoint, createEndingStopPoint
+  Buffer, describeChange, reverseFrame, Frame, isStopPoint, emptyChangeInfo,
+  SavePoint, ChangeInfo, createStopPoint, createEndingStopPoint, isFrame
 } from "./buffers";
 import Storage from "./storage";
 import { Interpreter } from "xstate";
@@ -85,15 +86,16 @@ function registerRecordingCommands() {
   return [insertStopCommand, undoCommand, saveOrDiscardMacroCommand, cancelRecordingCommand];
 }
 
+let documentAndSelectionChangeHandlers: vscode.Disposable[] = [];
 let recordingHooks: vscode.Disposable;
 
 export function registerRecordingHooks() {
-  console.log("registerRecordingHooks");
   const commands: vscode.Disposable[] = registerRecordingCommands();
   const eventHandlers: vscode.Disposable[] = registerRecordingEventHandlers();
+  registerDocumentAndSelectionChangeHandlers();
 
   recordingHooks = vscode.Disposable.from(
-    ...commands, ...eventHandlers
+    ...commands, ...eventHandlers, ...documentAndSelectionChangeHandlers
   );
 }
 
@@ -227,7 +229,14 @@ function handleSelectionChange(event: vscode.TextEditorSelectionChangeEvent) {
   putAsync(selectionChangeChannel, selections);
 }
 
-function registerRecordingEventHandlers() {
+function ignoreDocumentAndSelectionChanges() {
+  for (const handler of documentAndSelectionChangeHandlers) {
+    handler.dispose();
+  }
+  documentAndSelectionChangeHandlers = [];
+}
+
+function registerDocumentAndSelectionChangeHandlers() {
   const documentChangeHandler = vscode.workspace.onDidChangeTextDocument(
     handleDocumentChange
   );
@@ -236,6 +245,10 @@ function registerRecordingEventHandlers() {
     handleSelectionChange
   );
 
+  documentAndSelectionChangeHandlers = [documentChangeHandler, selectionChangeHandler];
+}
+
+function registerRecordingEventHandlers() {
   const documentClosedHandler = vscode.workspace.onDidCloseTextDocument(
     (closedDoc: vscode.TextDocument) => {
       if (closedDoc === currentActiveDoc) {
@@ -250,9 +263,7 @@ function registerRecordingEventHandlers() {
       // ask if user wants to save current recording and stop recording
     });
 
-  return [documentChangeHandler,
-    selectionChangeHandler,
-    documentClosedHandler,
+  return [documentClosedHandler,
     activeEditorChangedHandler];
 }
 
@@ -305,8 +316,59 @@ function makeFrames(changeInfo: ChangeInfo, selections: vscode.Selection[]): Fra
   }
 }
 
-function runBuffers() {
+function undo(undoneChannel: Channel) {
   const editChannel = chan(1);
+
+  go(function* () {
+    ignoreDocumentAndSelectionChanges();
+    let bufferIndex = bufferList.length - 1;
+    let bufferToUndo = bufferList[bufferIndex];
+    if (isFrame(bufferToUndo)) {
+      let char = bufferToUndo.changeInfo && bufferToUndo.changeInfo.changes[0].text;
+      console.log(char);
+    }
+    while (isStopPoint(bufferToUndo)) {
+      bufferList.pop();
+      bufferIndex -= 1;
+      bufferToUndo = bufferList[bufferIndex];
+      if (isFrame(bufferToUndo)) {
+        let char = bufferToUndo.changeInfo && bufferToUndo.changeInfo.changes[0].text;
+        console.log(char);
+      }
+    }
+    if (bufferToUndo) {
+      bufferList.pop();
+      bufferIndex -= 1;
+      let previousFrameOrSavePoint = bufferList[bufferIndex];
+      while (isStopPoint(previousFrameOrSavePoint)) {
+        bufferList.pop();
+        bufferIndex -= 1;
+        previousFrameOrSavePoint = bufferList[bufferIndex];
+      }
+      let undoFrame: Frame;
+      if (isFrame(bufferToUndo)) {
+        undoFrame = reverseFrame(
+          (<Frame>bufferToUndo).changeInfo,
+          (<Frame | SavePoint>previousFrameOrSavePoint).selections,
+          currentActiveDoc);
+        if (!textEditor) {
+          // error
+        } else {
+          // apply the undo to the document:
+          applyFrame(undoFrame, textEditor, editChannel);
+          // wait for applyFrame to finish:
+          yield editChannel;
+        }
+      }
+    }
+    registerDocumentAndSelectionChangeHandlers();
+    yield put(undoneChannel, 'done');
+    return;
+  });
+}
+
+function runBuffers() {
+  const undoneChannel = chan(1);
 
   // consumes bufferChannel and undoChannel
   // updates the bufferList and (if undo) the document
@@ -314,28 +376,9 @@ function runBuffers() {
     while (true) {
       let result = yield alts([undoChannel, bufferChannel], { priority: true });
       if (result.channel === undoChannel) {
-        console.log("UNDO");
-        let bufferIndex = bufferList.length - 1;
-        let lastBuffer = bufferList[bufferIndex];
-        while (isStopPoint(lastBuffer)) {
-          bufferList.pop();
-          bufferIndex -= 1;
-          lastBuffer = bufferList[bufferIndex];
-        }
-        if (lastBuffer) {
-          const undoFrame: Frame = reverseFrame(<Frame>lastBuffer, lastBuffer, currentActiveDoc);
-          if (!textEditor) {
-            // error
-          } else {
-            // apply the undo to the document:
-            applyFrame(undoFrame, textEditor, editChannel);
-            // wait for applyFrame to finish:
-            yield editChannel;
-            bufferList.pop();
-            // ignore next bufferChannel message; it's generated by the callbacks of our applyFrame:
-            yield bufferChannel;
-          }
-        }
+        undo(undoneChannel);
+        yield undoneChannel;
+        console.log(bufferList);
       } else { // result came from bufferChannel
         let buffer = result.value;
         if (buffer === CLOSED) {
