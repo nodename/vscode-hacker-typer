@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import Storage from "./storage";
 import showError from "./showError";
-import { stateService } from "./extension";
+import { TyperStateService } from "./extension";
 import * as statusBar from "./statusBar";
 import { isSavePoint, SavePoint } from "./buffers";
 import { applySavePoint } from "./edit";
@@ -116,7 +116,7 @@ function doLoadFinalState(context: vscode.ExtensionContext) {
     };
 }
 
-export function registerIdleCommands(context: vscode.ExtensionContext) {
+export function registerIdleCommands(context: vscode.ExtensionContext, stateService: TyperStateService) {
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with registerCommand
     // The commandId must match the command field in package.json
@@ -146,7 +146,7 @@ export function registerIdleCommands(context: vscode.ExtensionContext) {
     }
 }
 
-export function disposeIdleCommands(context: vscode.ExtensionContext) {
+export function disposeIdleCommands() {
     for (const command of commands) {
       command.dispose();
     }

@@ -7,12 +7,11 @@ import {
   SavePoint, ChangeInfo, createStopPoint, createEndingStopPoint, typeOf
 } from "./buffers";
 import Storage from "./storage";
-import { Interpreter } from "xstate";
-import { TyperContext, TyperSchema, TyperEvent } from "./states";
 import * as statusBar from "./statusBar";
 import showError from "./showError";
 import { applyFrame } from "./edit";
 import { last } from "./fun";
+import { TyperStateService } from "./extension";
 
 // Messages from our documentChange handler:
 let documentChangeChannel: Channel;
@@ -27,33 +26,7 @@ function insertStopPoint(name: string | null) {
   putAsync(bufferChannel, createStopPoint(name));
 }
 
-// state is 'saved':
-export function continueOrEndRecording() {
-  // const CONTINUE = "Continue current recording";
-  // const END = "Stop recording";
-  // vscode.window.showQuickPick([CONTINUE, END], {
-  //   canPickMany: false,
-  //   ignoreFocusOut: true,
-  //   placeHolder: "Please choose Continue or Stop"
-  // })
-  //   .then(
-  //     selection => {
-  //       switch (selection) {
-  //         case CONTINUE:
-  //           stateService.send('RESUME_RECORDING');
-  //           break;
-  //         case END:
-  //         default: // User hit Escape
-  bufferList.length = 0;
-  // transition out of record state:
-  stateService.send('DONE_RECORDING');
-  //         break;
-  //     }
-  //   }
-  // );
-}
-
-function registerRecordingCommands() {
+function registerRecordingCommands(stateService: TyperStateService) {
   const insertStopCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.insertStop",
     () => {
@@ -79,7 +52,7 @@ function registerRecordingCommands() {
   const cancelRecordingCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.cancelRecording",
     () => {
-      bufferList.length = 0;
+      bufferList = [];
       stateService.send('CANCELLED_RECORDING');
     }
   );
@@ -90,13 +63,13 @@ function registerRecordingCommands() {
 let documentAndSelectionChangeHandlers: vscode.Disposable[] = [];
 let recordingHooks: vscode.Disposable;
 
-export function registerRecordingHooks() {
-  const commands: vscode.Disposable[] = registerRecordingCommands();
+export function registerRecordingHooks(context: vscode.ExtensionContext, stateService: TyperStateService) {
+  const commands: vscode.Disposable[] = registerRecordingCommands(stateService);
   const eventHandlers: vscode.Disposable[] = registerRecordingEventHandlers();
   registerDocumentAndSelectionChangeHandlers();
 
   recordingHooks = vscode.Disposable.from(
-    ...commands, ...eventHandlers, ...documentAndSelectionChangeHandlers
+    ...commands, ...eventHandlers
   );
 }
 
@@ -105,32 +78,30 @@ export function disposeRecordingHooks(context: vscode.ExtensionContext) {
   if (recordingHooks) {
     recordingHooks.dispose();
   }
+  ignoreDocumentAndSelectionChanges();
 }
 
-let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
 let storage: Storage | null = null;
 let bufferList: Buffer[] = [];
 
 // on initial entry:
-export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext, TyperSchema, TyperEvent>) {
-  stateService = service;
+export function start(context: vscode.ExtensionContext, stateService: TyperStateService) {
   console.log("record.start");
   storage = Storage.getInstance(context);
   if (bufferList.length === 0) {
-    startNewRecording();
+    startNewRecording(stateService);
   } else {
-    resumeOrNewRecording();
+    resumeOrNewRecording(stateService);
   }
 }
 
-// on initial entry:
-async function resumeOrNewRecording() {
+async function resumeOrNewRecording(stateService: TyperStateService) {
   const CONTINUE = "Continue current recording";
   const NEW = "New recording from active editor";
   let selection = await vscode.window.showQuickPick([CONTINUE, NEW], {
     canPickMany: false,
     ignoreFocusOut: true,
-    placeHolder: "Please choose Save or Discard"
+    placeHolder: "Please choose Continue or New"
   });
 
   if (!selection) {
@@ -139,7 +110,7 @@ async function resumeOrNewRecording() {
   switch (selection) {
     case NEW:
       stateService.send('SAVE_RECORDING');
-      startNewRecording();
+      startNewRecording(stateService);
       break;
     case CONTINUE:
       stateService.send('RESUME_RECORDING');
@@ -316,45 +287,8 @@ function makeFrames(changeInfo: ChangeInfo, selections: vscode.Selection[]): Fra
   }
 }
 
-function undo(undoneChannel: Channel) {
+function runBuffers(stateService: TyperStateService) {
   const editChannel = chan(1);
-
-  go(function* () {
-    ignoreDocumentAndSelectionChanges();
-    let bufferToUndo = last(bufferList);
-    while (typeOf(bufferToUndo) !== 'Frame') {
-      bufferList.pop();
-      bufferToUndo = last(bufferList);
-    }
-    if (bufferToUndo) {
-      bufferList.pop();
-      let previousFrameOrSavePoint = last(bufferList);
-      while (typeOf(previousFrameOrSavePoint) !== 'Frame'
-        && typeOf(previousFrameOrSavePoint) !== 'SavePoint') {
-        bufferList.pop();
-        previousFrameOrSavePoint = last(bufferList);
-      }
-      const undoFrame = reverseFrame(
-        (<Frame>bufferToUndo).changeInfo,
-        (<Frame | SavePoint>previousFrameOrSavePoint).selections,
-        currentActiveDoc);
-      if (!textEditor) {
-        // error
-      } else {
-        // apply the undo to the document:
-        applyFrame(undoFrame, textEditor, editChannel);
-        // wait for applyFrame to finish:
-        yield editChannel;
-      }
-    }
-    registerDocumentAndSelectionChangeHandlers();
-    yield put(undoneChannel, 'undone');
-    return;
-  });
-}
-
-function runBuffers() {
-  const undoneChannel = chan(1);
 
   // consumes bufferChannel and undoChannel
   // updates the bufferList and (if undo) the document
@@ -362,8 +296,34 @@ function runBuffers() {
     while (true) {
       let result = yield alts([undoChannel, bufferChannel], { priority: true });
       if (result.channel === undoChannel) {
-        undo(undoneChannel);
-        yield undoneChannel;
+          let bufferToUndo = last(bufferList);
+          while (typeOf(bufferToUndo) !== 'Frame') {
+            bufferList.pop();
+            bufferToUndo = last(bufferList);
+          }
+          if (bufferToUndo) {
+            bufferList.pop();
+            let previousFrameOrSavePoint = last(bufferList);
+            while (typeOf(previousFrameOrSavePoint) !== 'Frame'
+              && typeOf(previousFrameOrSavePoint) !== 'SavePoint') {
+              bufferList.pop();
+              previousFrameOrSavePoint = last(bufferList);
+            }
+            const undoFrame = reverseFrame(
+              (<Frame>bufferToUndo).changeInfo,
+              (<Frame | SavePoint>previousFrameOrSavePoint).selections,
+              currentActiveDoc);
+            if (!textEditor) {
+              // error
+            } else {
+              ignoreDocumentAndSelectionChanges();
+              // apply the undo to the document:
+              applyFrame(undoFrame, textEditor, editChannel);
+              // wait for applyFrame to finish:
+              yield editChannel;
+              registerDocumentAndSelectionChangeHandlers();
+            }
+          }
         console.log(bufferList);
       } else { // result came from bufferChannel
         let buffer = result.value;
@@ -375,7 +335,7 @@ function runBuffers() {
                   stateService.send('SAVE_RECORDING');
                   break;
                 case 'discard':
-                  bufferList.length = 0;
+                  bufferList = [];
                   stateService.send('DISCARDED_RECORDING');
                   break;
               }
@@ -403,30 +363,21 @@ function initChannels() {
 }
 
 
-// startNewRecording or resumeRecording:
-function startRecording(currentOpenEditor: vscode.TextEditor) {
+function startRecording(currentOpenEditor: vscode.TextEditor, stateService: TyperStateService) {
   // start watching the currently open doc
   // TODO if not new recording, check if doc has changed
   currentActiveDoc = currentOpenEditor.document;
 
   runChanges();
-  runBuffers();
+  runBuffers(stateService);
 }
 
-function startNewRecording() {
+function startNewRecording(stateService: TyperStateService) {
   textEditor = vscode.window.activeTextEditor;
   if (textEditor) {
     initChannels();
     insertSavePoint(textEditor);
-    startRecording(textEditor);
-  }
-}
-
-export function resumeRecording() {
-  textEditor = vscode.window.activeTextEditor;
-  if (textEditor) {
-    initChannels();
-    startRecording(textEditor);
+    startRecording(textEditor, stateService);
   }
 }
 
@@ -441,7 +392,7 @@ function createSavePoint(textEditor: vscode.TextEditor): SavePoint {
   return { content: documentContent, language: language, selections: selections };
 }
 
-export function saveRecording() {
+export function saveRecording(context: vscode.ExtensionContext, stateService: TyperStateService) {
   doSaveRecording()
     .then(success => {
       stateService.send(success ? 'RECORDING_SAVED' : 'RECORDING_NOT_SAVED');
@@ -488,7 +439,7 @@ async function doSaveRecording() {
       description: "",
       buffers: bufferList
     });
-    statusBar.show(macro.name);
+    statusBar.show(`Saved ${macro.name}`);
     return true;
   } else { // User hit Escape, name is undefined
     return false;

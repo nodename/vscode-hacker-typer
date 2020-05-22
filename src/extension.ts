@@ -9,9 +9,9 @@ import { interpret, Interpreter } from "xstate";
 import { TyperContext, TyperSchema, TyperEvent, typerMachine } from "./states";
 import * as statusBar from "./statusBar";
 
-export let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
+export type TyperStateService = Interpreter<TyperContext, TyperSchema, TyperEvent>;
 
-type FnType = (context: vscode.ExtensionContext) => void;
+type FnType = (context: vscode.ExtensionContext, service: TyperStateService) => void;
 type FnDict = Record<string, FnType>;
 // This FnDict maps state-machine actions to their implementations.
 // the extension context is passed as an argument to each implementation function.
@@ -19,21 +19,20 @@ const actionImplementations: FnDict = {
   enableIdling: idle.registerIdleCommands,
   disableIdling: idle.disposeIdleCommands,
   enableRecording: recording.registerRecordingHooks,
-  startRecording: startRecording,
+  startRecording: recording.start,
   showRecording: () => statusBar.show('Recording'),
   showSaving: () => statusBar.show('Saving'),
   saveRecording: recording.saveRecording,
   showRecordingNotSaved: () => statusBar.show('Recording not saved'),
-  continueOrEndRecording: recording.continueOrEndRecording,
   showDoneRecording: () => statusBar.show('Done recording'),
   showCancelledRecording: () => statusBar.show('Recording cancelled'),
   showDiscardedRecording: () => statusBar.show('Recording discarded'),
-  resumeRecording: recording.resumeRecording,
   disableRecording: recording.disposeRecordingHooks,
   enablePlaying: play.registerPlayingCommands,
-  startPlaying: startPlaying,
+  startPlaying: play.start,
   playPauseSound: sound.playPauseSound,
   playEndSound: sound.playEndSound,
+  showEnd: () => statusBar.show('END'),
   showCancelledPlaying: () => statusBar.show('Cancelled playing'),
   showDonePlaying: () => statusBar.show("Done playing"),
   startAutoPlay: play.startAutoPlay,
@@ -53,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   statusBar.init();
   
-  stateService = interpret<TyperContext, TyperSchema, TyperEvent>(typerMachine, {
+  const stateService = interpret<TyperContext, TyperSchema, TyperEvent>(typerMachine, {
     execute: false // I'm going to handle the execution
     // because I don't want to specify concrete action implementations in the statechart itself.
     // The implementations in turn know nothing about the state machine other than
@@ -81,19 +80,11 @@ export function activate(context: vscode.ExtensionContext) {
     statusBar.setAppState(stateName);
     state.actions.forEach(action => {
       console.log(`${action.type}`);
-      actionImplementations[action.type](context);
+      actionImplementations[action.type](context, stateService);
     });
   });
   stateService.start();
   statusBar.setAppState("Idle");
-}
-
-function startRecording(context: vscode.ExtensionContext) {
-  recording.start(context, stateService);
-}
-
-function startPlaying(context: vscode.ExtensionContext) {
-  play.start(context, stateService);
 }
 
 // this function is called when the extension is deactivated

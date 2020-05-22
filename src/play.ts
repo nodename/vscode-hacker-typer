@@ -5,10 +5,9 @@ import { Buffer, SavePoint, isSavePoint, typeOf, Frame } from "./buffers";
 import Storage from "./storage";
 import { go, chan, put, putAsync, Channel, CLOSED, operations, timeout, alts } from "js-csp";
 import { applyFrame, applySavePoint } from "./edit";
-import { Interpreter } from "xstate";
-import { TyperContext, TyperSchema, TyperEvent } from "./states";
 import * as statusBar from "./statusBar";
 import { rest, last, butLast } from "./fun";
+import { TyperStateService } from "./extension";
 
 
 // Data Flow: Playing a macro ////////////////////////////////////////////////////////////////////////
@@ -27,8 +26,6 @@ import { rest, last, butLast } from "./fun";
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-let stateService: Interpreter<TyperContext, TyperSchema, TyperEvent>;
-
 const stopPointBreakoutChar = `\n`; // ENTER
 const toggleAutoPlayChar = '`';
 
@@ -43,8 +40,8 @@ let cancelPlayingCommand: vscode.Disposable;
 
 const autoPlayControlChannel: Channel = chan(1);
 
-export function registerPlayingCommands() {
-  setManualKeyboardMode();
+export function registerPlayingCommands(context: vscode.ExtensionContext, stateService: TyperStateService) {
+  setManualKeyboardMode(stateService);
   toggleSilenceCommand = vscode.commands.registerCommand(
     "nodename.vscode-hacker-typer-fork.toggleSilence", toggleSilence);
   cancelPlayingCommand = vscode.commands.registerCommand(
@@ -57,20 +54,26 @@ export function disposePlayingCommands() {
   toggleSilenceCommand.dispose();
 }
 
-function setManualKeyboardMode() {
-  typeCommand = registerTypeCommand();
+function setManualKeyboardMode(stateService: TyperStateService) {
+  typeCommand = registerTypeCommand(stateService);
 }
 
-function setAutoKeyboardMode() {
-  typeCommand = registerAutoTypeCommand();
+function setAutoKeyboardMode(stateService: TyperStateService) {
+  typeCommand = registerAutoTypeCommand(stateService);
 }
 
-const keyboardCommands = new Map([
-  [stopPointBreakoutChar, () => putAsync(commandChannel, breakoutCommand)],
-  [toggleAutoPlayChar, () => stateService.send('TOGGLE_AUTOPLAY')]
-]);
+let keyboardCommands: Map<any, any> | undefined = undefined;
+function makeKeyboardCommands(stateService: TyperStateService) {
+  if (keyboardCommands === undefined) {
+    keyboardCommands = new Map([
+      [stopPointBreakoutChar, () => putAsync(commandChannel, breakoutCommand)],
+      [toggleAutoPlayChar, () => stateService.send('TOGGLE_AUTOPLAY')]
+    ]);
+  }
+  return keyboardCommands;
+}
 
-function registerTypeCommand() {
+function registerTypeCommand(stateService: TyperStateService) {
   // "type" is a built-in command, so we don't configure a keyboard shortcut.
   // We install the  handler:
 
@@ -79,7 +82,7 @@ function registerTypeCommand() {
   // and to start autoplay
 
   const onType = ({ text: userInput }: { text: string }) => {
-    const f = keyboardCommands.get(userInput);
+    const f = makeKeyboardCommands(stateService).get(userInput);
     if (f) {
       f();
     } else { // any other string: perform the default action
@@ -94,12 +97,12 @@ function registerTypeCommand() {
   return vscode.commands.registerCommand("type", onType);
 }
 
-function registerAutoTypeCommand() {
+function registerAutoTypeCommand(stateService: TyperStateService) {
   // keyboard is used only to break out of stop points
   // and to pause autoplay
 
   const onType = ({ text: userInput }: { text: string }) => {
-    const f = keyboardCommands.get(userInput);
+    const f = makeKeyboardCommands(stateService).get(userInput);
     if (f) {
       f();
     }
@@ -135,38 +138,39 @@ function runAutoPlay(autoPlayControlChannel: Channel, commandChannel: Channel) {
         }
       } else { // timeout expired
         if (state === AutoPlayState.Play) {
-            yield put(commandChannel, nextCommand);
+          yield put(commandChannel, nextCommand);
         }
       }
     }
   });
 }
 
-export function startAutoPlay() {
-  setAutoKeyboardMode();
+export function startAutoPlay(context: vscode.ExtensionContext, stateService: TyperStateService) {
+  setAutoKeyboardMode(stateService);
   putAsync(autoPlayControlChannel, AutoPlayState.Play);
 }
 
-export function pauseAutoPlay() {
+export function pauseAutoPlay(context: vscode.ExtensionContext, stateService: TyperStateService) {
   putAsync(autoPlayControlChannel, AutoPlayState.Pause);
-  setManualKeyboardMode();
+  setManualKeyboardMode(stateService);
 }
 
-export function resumeAutoPlay() {
-  setAutoKeyboardMode();
+export function resumeAutoPlay(context: vscode.ExtensionContext, stateService: TyperStateService) {
+  setAutoKeyboardMode(stateService);
   putAsync(commandChannel, breakoutCommand);
 }
 
 // Do this when leaving the play state
-export function quitAutoPlay() {
+export function quitAutoPlay(context: vscode.ExtensionContext, stateService: TyperStateService) {
   putAsync(autoPlayControlChannel, AutoPlayState.Quit);
-  setManualKeyboardMode();
+  setManualKeyboardMode(stateService);
 }
 
 function runPlay(
   commandChannel: Channel,
   buffers: Buffer[],
-  textEditor: vscode.TextEditor) {
+  textEditor: vscode.TextEditor,
+  stateService: TyperStateService) {
   // Events indicating that an edit has completed:
   const editChannel = chan(1);
 
@@ -233,16 +237,15 @@ function runPlay(
   });
 }
 
-function cancelPlaying() {
+function cancelPlaying(stateService: TyperStateService) {
   stateService.send('CANCELLED_PLAYING');
 }
 
-function toggleSilence() {
+function toggleSilence(stateService: TyperStateService) {
   stateService.send('TOGGLE_SILENCE');
 }
 
-export function start(context: vscode.ExtensionContext, service: Interpreter<TyperContext, TyperSchema, TyperEvent>) {
-  stateService = service;
+export function start(context: vscode.ExtensionContext, stateService: TyperStateService) {
   const storage = Storage.getInstance(context);
   storage.userChooseMacro((macro) => {
     let textEditor = vscode.window.activeTextEditor;
@@ -250,7 +253,7 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
       // error
     }
     if (!macro) {
-      cancelPlaying();
+      cancelPlaying(stateService);
       return;
     }
 
@@ -258,7 +261,7 @@ export function start(context: vscode.ExtensionContext, service: Interpreter<Typ
 
     // goroutines:
     runAutoPlay(autoPlayControlChannel, commandChannel);
-    runPlay(commandChannel, macro.buffers, <vscode.TextEditor>textEditor);
+    runPlay(commandChannel, macro.buffers, <vscode.TextEditor>textEditor, stateService);
 
     statusBar.show(`${macro.name}`);
   });
