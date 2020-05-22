@@ -5,7 +5,7 @@ export interface TyperContext { }
 
 type TyperStateName = 'idle' | 'record' | 'play' | undefined;
 const idle: TyperStateName = 'idle';
-type RecordStateName = 'startRecord' | 'recording' | 'saving' | 'saved' | 'resumed' | undefined;
+type RecordStateName = 'startRecord' | 'recording' | 'saving' | undefined;
 const startRecord: RecordStateName = 'startRecord';
 type PlayStateName = 'playing' | 'paused' | undefined;
 const playing: PlayStateName = 'playing';
@@ -37,23 +37,11 @@ const recordStates = {
         saving: {
             entry: ['showSaving', 'saveRecording'],
             on: {
-                RECORDING_SAVED: 'saved',
+                RECORDING_SAVED: '#idle',
                 RECORDING_NOT_SAVED: {
                     target: 'recording',
                     actions: 'showRecordingNotSaved'
                 }
-            }
-        },
-        saved: {
-            entry: 'continueOrEndRecording',
-            on: {
-                RESUME_RECORDING: 'resumed'
-            }
-        },
-        resumed: {
-            entry: 'resumeRecording',
-            on: {
-                SAVE_RECORDING: 'saving'
             }
         }
     }
@@ -74,7 +62,7 @@ const playStates = {
                         },
                         PLAY_PAUSED_AT_END: {
                             target: 'paused',
-                            actions: 'playEndSound'
+                            actions: ['playEndSound', 'showEnd']
                         }
                     }
                 },
@@ -132,6 +120,7 @@ const typerStates = {
     initial: idle,
     states: {
         idle: {
+            id: 'idle',
             entry: 'enableIdling',
             on: {
                 RECORD: 'record',
@@ -142,7 +131,6 @@ const typerStates = {
             }
         },
         record: {
-            exit: 'disableRecording',
             on: {
                 DONE_RECORDING: {
                     target: 'idle',
@@ -157,10 +145,10 @@ const typerStates = {
                     actions: 'showDiscardedRecording'
                 }
             },
+            exit: 'disableRecording',
             ...recordStates
         },
         play: {
-            exit: ['quitAutoPlay', 'disablePlaying'],
             on: {
                 TOGGLE_SILENCE: {
                     actions: 'toggleSilence'
@@ -174,6 +162,7 @@ const typerStates = {
                     actions: 'showCancelledPlaying'
                 }
             },
+            exit: ['quitAutoPlay', 'disablePlaying'],
             ...playStates
         }
     }
@@ -186,9 +175,7 @@ export interface TyperSchema {
             states: {
                 startRecord: {},
                 recording: {},
-                saving: {},
-                saved: {},
-                resumed: {}
+                saving: {}
             }
         },
         play: {
